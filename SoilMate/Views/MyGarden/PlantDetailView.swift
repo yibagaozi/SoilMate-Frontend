@@ -76,19 +76,19 @@ struct PlantDetailView: View {
                             showEditPlant = true
                         } label: {
                             Label("Edit Plant Information", systemImage: "square.and.pencil")
-                                .foregroundStyle(.primary) // 图标 + 文字保持系统黑
+                                .foregroundStyle(.primary)
                         }
 
                         Button(role: .destructive) {
                             showDeleteConfirm = true
                         } label: {
                             Label("Delete Plant", systemImage: "trash")
-                                .foregroundStyle(.red) // 强制红色
+                                .foregroundStyle(.red)
                         }
 
                     } label: {
                         Image(systemName: "square.on.square")
-                            .foregroundColor(.primary) // 只给触发按钮上色
+                            .foregroundColor(.primary)
                     }
                     .tint(nil)
                 }
@@ -148,7 +148,7 @@ struct PlantDetailView: View {
             Text("Feeding")
                 .font(.system(size: 20, weight: .bold))
 
-            Text("Every 6 Months")
+            Text("Every 60 Days")
                 .font(.system(size: 15))
                 .foregroundColor(.secondary)
 

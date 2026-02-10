@@ -24,8 +24,8 @@ struct EditPlantView: View {
     @State private var location = "Living Room"
     @State private var enableNotification = true
 
-    private let waterFrequencyOptions = [3, 7, 14, 30]
-    private let feedingFrequencyOptions = [1, 3, 6, 12]
+    private let waterFrequencyOptions = [3, 5, 7, 10, 14, 21]
+    private let feedingFrequencyOptions = [15, 30, 60, 90. 120]
     private let feedingTypeOptions = ["General fertilizer", "Liquid fertilizer", "Slow-release", "Organic"]
     private let lightOptions = ["Full Sun", "Partial Sun", "Low Light", "Flexible"]
     private let locationOptions = ["Living Room", "Bedroom", "Balcony", "Office", "Kitchen"]
@@ -120,11 +120,11 @@ struct EditPlantView: View {
                     Spacer()
                     Menu {
                         ForEach(feedingFrequencyOptions, id: \.self) { months in
-                            Button("\(months) Months") { feedingFrequency = months }
+                            Button("\(months) Days") { feedingFrequency = months }
                         }
                     } label: {
                         HStack(spacing: 4) {
-                            Text("\(feedingFrequency) Months")
+                            Text("\(feedingFrequency) Days")
                                 .foregroundColor(.secondary)
                             Image(systemName: "chevron.up.chevron.down")
                                 .font(.system(size: 10, weight: .medium))
