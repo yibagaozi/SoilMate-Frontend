@@ -7,6 +7,7 @@
 
 import SwiftUI
 import VisionKit
+import AVFoundation
 
 // MARK: - Add Plant View
 
@@ -15,6 +16,7 @@ struct AddPlantView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var scannedCode: String? = nil
+    @State private var cameraPermissionGranted = false
 
     @State private var nickname = ""
     @State private var waterFrequency = 14
@@ -239,6 +241,13 @@ struct AddPlantView: View {
             }
         }
         .contentMargins(.top, 8)
+        .onAppear {
+            AVCaptureDevice.requestAccess(for: .video) { granted in
+                DispatchQueue.main.async {
+                    cameraPermissionGranted = granted
+                }
+            }
+        }
     }
 
     // MARK: - UIAlertController for Nickname
@@ -288,8 +297,9 @@ struct AddPlantView: View {
 
     private var scannerArea: some View {
         ZStack {
-            if DataScannerViewController.isSupported &&
-               DataScannerViewController.isAvailable {
+            if cameraPermissionGranted &&
+                DataScannerViewController.isSupported &&
+                DataScannerViewController.isAvailable {
                 DataScannerRepresentable(scannedCode: $scannedCode)
             } else {
                 Rectangle()
@@ -374,7 +384,11 @@ struct DataScannerRepresentable: UIViewControllerRepresentable {
             isHighlightingEnabled: true
         )
         scanner.delegate = context.coordinator
-        try? scanner.startScanning()
+        do {
+            try scanner.startScanning()
+        } catch {
+            print("Scanner failed to start: \(error)")
+        }
         return scanner
     }
 

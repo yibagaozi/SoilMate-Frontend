@@ -25,7 +25,7 @@ struct EditPlantView: View {
     @State private var enableNotification = true
 
     private let waterFrequencyOptions = [3, 5, 7, 10, 14, 21]
-    private let feedingFrequencyOptions = [15, 30, 60, 90. 120]
+    private let feedingFrequencyOptions = [15, 30, 60, 90, 120]
     private let feedingTypeOptions = ["General fertilizer", "Liquid fertilizer", "Slow-release", "Organic"]
     private let lightOptions = ["Full Sun", "Partial Sun", "Low Light", "Flexible"]
     private let locationOptions = ["Living Room", "Bedroom", "Balcony", "Office", "Kitchen"]
