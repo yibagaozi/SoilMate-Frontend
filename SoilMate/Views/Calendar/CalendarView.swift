@@ -16,6 +16,8 @@ private struct StaticTask: Identifiable, Equatable {
     let date: String
     let note: String
     let isWatering: Bool
+    let plantImageName: String?
+    let recordImageName: String?
 
     static func == (lhs: StaticTask, rhs: StaticTask) -> Bool {
         lhs.id == rhs.id
@@ -25,16 +27,19 @@ private struct StaticTask: Identifiable, Equatable {
 private let wateringTasks = [
     StaticTask(plantName: "Snake Plant", scientificName: "Sansevieria trifasciata",
                detail: "200ml", amount: "200 ml", date: "Apr 20, 2025",
-               note: "Leaves looking healthy after watering", isWatering: true),
+               note: "Leaves looking healthy after watering", isWatering: true,
+               plantImageName: "IMG_2411", recordImageName: "IMG_2415"),
     StaticTask(plantName: "Succulent", scientificName: "Echeveria elegans",
                detail: "160ml", amount: "160 ml", date: "Apr 20, 2025",
-               note: "Soil was very dry before watering", isWatering: true),
+               note: "Soil was very dry before watering", isWatering: true,
+               plantImageName: "IMG_2412", recordImageName: "IMG_2415"),
 ]
 
 private let feedingTasks = [
     StaticTask(plantName: "Monstera", scientificName: "Monstera deliciosa",
                detail: "General fertilizer", amount: "General fertilizer", date: "Apr 20, 2025",
-               note: "Applied half-strength liquid fertilizer", isWatering: false),
+               note: "Applied half-strength liquid fertilizer", isWatering: false,
+               plantImageName: "IMG_2414", recordImageName: "IMG_2415"),
 ]
 
 // MARK: - Calendar View
@@ -235,14 +240,24 @@ private struct TaskDetailSheet: View {
 
                 VStack(alignment: .leading, spacing: 0) {
                     HStack(spacing: 12) {
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.green.opacity(0.12))
-                            .frame(width: 50, height: 50)
-                            .overlay(
-                                Image(systemName: "leaf.fill")
-                                    .font(.system(size: 20))
-                                    .foregroundColor(.green.opacity(0.4))
-                            )
+                        if let name = task.plantImageName {
+                            Image(name)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 50, height: 50)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                        } else {
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.green.opacity(0.12))
+                                .frame(width: 50, height: 50)
+                                .overlay(
+                                    Image(systemName: "leaf.fill")
+                                        .font(.system(size: 20))
+                                        .foregroundColor(.green.opacity(0.4))
+                                )
+                        }
+
+                        
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(task.plantName)
@@ -291,18 +306,22 @@ private struct TaskDetailSheet: View {
                         .font(.system(size: 14))
                         .foregroundColor(.secondary)
 
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.white.opacity(1))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.white.opacity(0.22), lineWidth: 1)
-                        )
-                        .frame(height: 120)
-                        .overlay(
-                            Image(systemName: "photo")
-                                .font(.system(size: 32))
-                                .foregroundColor(.green.opacity(0.35))
-                        )
+                    if let name = task.recordImageName {
+                        Image(name)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 100, height: 100)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                    } else {
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.white.opacity(1))
+                            .frame(width: 100, height: 100)
+                            .overlay(
+                                Image(systemName: "photo")
+                                    .font(.system(size: 32))
+                                    .foregroundColor(.green.opacity(0.35))
+                            )
+                    }
 
                     Text("\"\(task.note)\"")
                         .font(.system(size: 14))

@@ -19,41 +19,43 @@ struct AddPlantView: View {
     @State private var cameraPermissionGranted = false
 
     @State private var nickname = ""
+    @State private var potSize = "M"
+    @State private var environment = "Indoor"
     @State private var waterFrequency = 14
     @State private var waterAmount = 200
-    @State private var feedingFrequency = 6
+    @State private var feedingFrequency = 60
     @State private var lightRequirement = "Flexible"
     @State private var location = ""
 
     @State private var enableNotification = true
 
     @State private var showLocationDialog = false
+    @State private var showPotSizeInfo = false
 
-    private let waterFrequencyOptions = [3, 5, 7, 10, 14, 21]
+    private let waterFrequencyOptions = [3, 5, 7, 10, 14, 21, 30]
     private let feedingOptions = [15, 30, 60, 90, 120]
-    private let lightOptions = ["Full Sun", "Partial Sun", "Low Light", "Flexible"]
+    private let lightOptions = ["Full Sun", "Partial Sun", "Low Light", "Medium", "Flexible"]
+    private let environmentOptions = ["Indoor", "Outdoor", "Greenhouse"]
     private let presetLocations = ["Living Room", "Bedroom", "Balcony", "Office", "Kitchen"]
-
-    @State private var showNicknameEditor = false
-    @State private var tempNickname = ""
+    private let potSizeOptions = ["S", "M", "L", "XL"]
 
     var body: some View {
         NavigationStack {
             List {
+                // ── Scanner ──
                 Section {
                     scannerArea
                         .frame(height: 280)
                         .listRowInsets(EdgeInsets())
                 }
                 .listSectionSpacing(10)
-                
 
                 // ── Plant Information ──
                 Section("Plant Information") {
 
                     plantHeader
 
-                    // Nickname — UIAlertController
+                    // Nickname
                     Button {
                         presentNicknameAlert()
                     } label: {
@@ -71,6 +73,98 @@ struct AddPlantView: View {
                         }
                     }
                     .buttonStyle(.plain)
+
+                    // Pot Size — inline segment selector
+                    HStack {
+                        HStack(spacing: 4) {
+                            Text("Pot Size")
+                            Button {
+                                showPotSizeInfo = true
+                            } label: {
+                                Image(systemName: "info.circle")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(Color(.tertiaryLabel))
+                            }
+                            .buttonStyle(.plain)
+                            .popover(isPresented: $showPotSizeInfo, arrowEdge: .bottom) {
+                                potSizeInfoPopover
+                            }
+                        }
+                        Spacer()
+                        HStack(spacing: 0) {
+                            ForEach(potSizeOptions, id: \.self) { size in
+                                Button {
+                                    potSize = size
+                                } label: {
+                                    Text(size)
+                                        .font(.system(size: 14, weight: potSize == size ? .semibold : .regular))
+                                        .foregroundColor(potSize == size ? .white : .secondary)
+                                        .frame(width: 36, height: 30)
+                                        .background(
+                                            potSize == size
+                                                ? Color.mint
+                                                : Color.clear
+                                        )
+                                }
+                                .buttonStyle(.plain)
+
+                                if size != potSizeOptions.last {
+                                    Divider().frame(height: 20)
+                                }
+                            }
+                        }
+                        .background(Color(.tertiarySystemFill))
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                    }
+
+                    // Environment
+                    HStack {
+                        Text("Environment")
+                        Spacer()
+                        Menu {
+                            ForEach(environmentOptions, id: \.self) { option in
+                                Button(option) { environment = option }
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(environment)
+                                    .foregroundColor(.secondary)
+                                Image(systemName: "chevron.up.chevron.down")
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundColor(Color(.tertiaryLabel))
+                            }
+                        }
+                    }
+
+                    // Location
+                    HStack {
+                        Text("Location")
+                        Spacer()
+                        Menu {
+                            ForEach(presetLocations, id: \.self) { loc in
+                                Button(loc) { location = loc }
+                            }
+                            Button("Custom…") {
+                                presentCustomLocationAlert()
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(location.isEmpty ? "Choose" : location)
+                                    .foregroundColor(.secondary)
+                                Image(systemName: "chevron.up.chevron.down")
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundColor(Color(.tertiaryLabel))
+                            }
+                        }
+                    }
+
+                    // Notification
+                    Toggle("Notification", isOn: $enableNotification)
+                        .tint(.mint)
+                }
+
+                // ── Caring Schedule ──
+                Section("Caring Schedule") {
 
                     // Water Frequency
                     HStack {
@@ -134,11 +228,10 @@ struct AddPlantView: View {
                         Text("Feeding Frequency")
                         Spacer()
                         Menu {
-                            ForEach(feedingOptions, id: \.self) { months in
-                                Button("\(months) Days") { feedingFrequency = months }
+                            ForEach(feedingOptions, id: \.self) { days in
+                                Button("\(days) Days") { feedingFrequency = days }
                             }
-                        }
-                        label: {
+                        } label: {
                             HStack(spacing: 4) {
                                 Text("\(feedingFrequency) Days")
                                     .foregroundColor(.secondary)
@@ -146,7 +239,6 @@ struct AddPlantView: View {
                                     .font(.system(size: 10, weight: .medium))
                                     .foregroundColor(Color(.tertiaryLabel))
                             }
-
                         }
                     }
 
@@ -168,32 +260,11 @@ struct AddPlantView: View {
                             }
                         }
                     }
+                }
 
-                    HStack {
-                        Text("Location")
-                        Spacer()
-                        Menu {
-                            ForEach(presetLocations, id: \.self) { loc in
-                                Button(loc) { location = loc }
-                            }
-                            Button("Custom…") {
-                                presentCustomLocationAlert()
-                            }
-                        } label: {
-                            HStack(spacing: 4) {
-                                Text(location.isEmpty ? "Choose" : location)
-                                    .foregroundColor(.secondary)
-                                Image(systemName: "chevron.up.chevron.down")
-                                    .font(.system(size: 10, weight: .medium))
-                                    .foregroundColor(Color(.tertiaryLabel))
-                            }
-                        }
-
-                    }
-
-                    // Enable Notification
-                    Toggle("Enable Notification", isOn: $enableNotification)
-                        .tint(.mint)
+                // ── Watering ──
+                Section("Watering") {
+                    wateringBlock
                 }
             }
             .listStyle(.insetGrouped)
@@ -225,7 +296,6 @@ struct AddPlantView: View {
                     }
                 }
             }
-            // Location
             .confirmationDialog(
                 "Location",
                 isPresented: $showLocationDialog,
@@ -248,6 +318,113 @@ struct AddPlantView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Pot Size Info Popover
+
+    private var potSizeInfoPopover: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Pot Size Guide")
+                .font(.system(size: 15, weight: .semibold))
+                .padding(.bottom, 2)
+
+            Text("Sizes refer to the pot's opening diameter.")
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+                .padding(.bottom, 12)
+
+            ForEach(potSizeGuide, id: \.size) { entry in
+                HStack(alignment: .top, spacing: 12) {
+                    // Size badge
+                    Text(entry.size)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 28, height: 28)
+                        .background(potSize == entry.size ? Color.mint : Color(.systemGray3))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(entry.label)
+                            .font(.system(size: 14, weight: .medium))
+                        Text(entry.description)
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.bottom, entry.size == "XL" ? 0 : 10)
+            }
+        }
+        .padding(18)
+        .frame(width: 280)
+        .presentationCompactAdaptation(.popover)
+    }
+
+    private struct PotSizeEntry {
+        let size: String
+        let label: String
+        let description: String
+    }
+
+    private let potSizeGuide: [PotSizeEntry] = [
+        PotSizeEntry(size: "S",  label: "Small  (< 15 cm)",      description: "Fits in one hand. Typically 10–14 cm tall. Ideal for seedlings, succulents, and small herbs."),
+        PotSizeEntry(size: "M",  label: "Medium (15–25 cm)",     description: "Standard nursery pot size. Typically 15–22 cm tall. Suits most common houseplants."),
+        PotSizeEntry(size: "L",  label: "Large  (25–40 cm)",     description: "Wide, bucket-like opening. Typically 25–35 cm tall. Good for tropical foliage and bushy ferns."),
+        PotSizeEntry(size: "XL", label: "Extra Large (> 40 cm)", description: "Floor-standing planter. Often 40 cm or taller. Built for large trees and statement plants."),
+    ]
+
+    // MARK: - Watering Block
+
+    private var wateringBlock: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("How to Water")
+                    .font(.system(size: 16, weight: .bold))
+                Text("Allow soil to dry completely between waterings. Water slowly until it drains from the bottom.")
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text("Suggested amount")
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+                Spacer()
+                Text("≈ ")
+                    .font(.system(size: 15))
+                    .foregroundColor(.secondary)
+                Text("\(waterAmount)")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundStyle(.blue)
+                Text("ml")
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+            }
+
+            // Context tags
+            HStack(spacing: 6) {
+                ForEach(wateringTags, id: \.self) { tag in
+                    Text(tag)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Color(.secondarySystemFill))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    /// Dynamically build context tags from current selections
+    private var wateringTags: [String] {
+        var tags: [String] = []
+        tags.append("\(potSize == "S" ? "Small" : potSize == "M" ? "Medium" : potSize == "L" ? "Large" : "XL") Pot")
+        tags.append(environment)
+        tags.append("Winter × 0.7")
+        return tags
     }
 
     // MARK: - UIAlertController for Nickname
@@ -326,9 +503,10 @@ struct AddPlantView: View {
                 .fill(Color.green.opacity(0.12))
                 .frame(width: 50, height: 50)
                 .overlay(
-                    Image(systemName: "leaf.fill")
-                        .font(.system(size: 20))
-                        .foregroundColor(.green.opacity(0.4))
+                    Image("IMG_2411")
+                        .resizable()
+                        .scaledToFill()
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 )
 
             VStack(alignment: .leading, spacing: 2) {

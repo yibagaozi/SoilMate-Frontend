@@ -18,13 +18,13 @@ private struct StaticPlant: Identifiable {
 
 private let staticPlants: [StaticPlant] = [
     StaticPlant(id: 1, name: "Snake Plant", location: "Living Room",
-                imageName: "plant1", statusText: "Tomorrow", statusColor: .orange),
+                imageName: "IMG_2411", statusText: "Tomorrow", statusColor: .orange),
     StaticPlant(id: 2, name: "Spider Plant", location: "Bedroom",
-                imageName: "plant2", statusText: "Today", statusColor: .red),
+                imageName: "IMG_2414", statusText: "Today", statusColor: .blue),
     StaticPlant(id: 3, name: "Succulent", location: "Balcony",
-                imageName: "plant3", statusText: "In 6 Days", statusColor: .mint),
+                imageName: "IMG_2412", statusText: "In 6 Days", statusColor: .mint),
     StaticPlant(id: 4, name: "Monstera", location: "Office",
-                imageName: "plant4", statusText: "Overdue", statusColor: .red),
+                imageName: "IMG_2413", statusText: "Overdue", statusColor: .red),
 ]
 
 struct MyGardenView: View {
@@ -143,18 +143,20 @@ private struct PlantCard: View {
         VStack(alignment: .leading, spacing: 0) {
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color.green.opacity(0.12))
-                .frame(height: 100)
+                .aspectRatio(1, contentMode: .fit)
+                .frame(maxWidth: 100)
                 .overlay(
-                    Image(systemName: "leaf.fill")
-                        .font(.system(size: 32))
-                        .foregroundColor(.green.opacity(0.3))
+                    Image(plant.imageName)
+                        .resizable()
+                        .scaledToFill()
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 )
                 .padding(.horizontal, 12)
                 .padding(.top, 12)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(plant.name)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(.primary)
 
                 Text(plant.location)
@@ -162,7 +164,7 @@ private struct PlantCard: View {
                     .foregroundColor(.gray)
 
                 Text(plant.statusText)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(plant.statusColor)
                     .padding(.top, 2)
             }

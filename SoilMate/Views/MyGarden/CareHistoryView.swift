@@ -17,6 +17,7 @@ private struct CareRecord: Identifiable {
     let month: Int      // for filtering
     let year: Int       // for filtering
     let note: String?
+    let imageName: String?
 
     enum CareType {
         case watering, feeding
@@ -39,17 +40,23 @@ private struct CareRecord: Identifiable {
 
 private let allRecords: [CareRecord] = [
     CareRecord(type: .watering, detail: "200 ml", date: "Dec 25, 2025",
-               month: 12, year: 2025, note: "Leaves looking healthy after watering"),
+               month: 12, year: 2025, note: "Leaves looking healthy after watering",
+               imageName: "IMG_2415"),
     CareRecord(type: .feeding, detail: "General fertilizer", date: "Dec 11, 2025",
-               month: 12, year: 2025, note: nil),
+               month: 12, year: 2025, note: nil,
+               imageName: "IMG_2415"),
     CareRecord(type: .watering, detail: "200 ml", date: "Dec 11, 2025",
-               month: 12, year: 2025, note: "Leaves looking good after watering"),
+               month: 12, year: 2025, note: "Leaves looking good after watering",
+               imageName: "IMG_2415"),
     CareRecord(type: .watering, detail: "200 ml", date: "Nov 28, 2025",
-               month: 11, year: 2025, note: nil),
+               month: 11, year: 2025, note: nil,
+               imageName: "IMG_2415"),
     CareRecord(type: .feeding, detail: "Liquid fertilizer", date: "Nov 15, 2025",
-               month: 11, year: 2025, note: "Applied half-strength"),
+               month: 11, year: 2025, note: "Applied half-strength",
+               imageName: "IMG_2415"),
     CareRecord(type: .watering, detail: "150 ml", date: "Oct 20, 2025",
-               month: 10, year: 2025, note: "Soil was very dry"),
+               month: 10, year: 2025, note: "Soil was very dry",
+               imageName: "IMG_2415"),
 ]
 
 // MARK: - Care History View
@@ -166,14 +173,22 @@ struct CareHistoryView: View {
             }
 
             // Photo placeholder
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color.green.opacity(0.10))
-                .frame(width: 120, height: 120)
-                .overlay(
-                    Image(systemName: "photo")
-                        .font(.system(size: 24))
-                        .foregroundColor(.green.opacity(0.3))
-                )
+            if let imageName = record.imageName {
+                Image(imageName)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 120, height: 120)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+            } else {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color.green.opacity(0.10))
+                    .frame(width: 120, height: 120)
+                    .overlay(
+                        Image(systemName: "photo")
+                            .font(.system(size: 24))
+                            .foregroundColor(.green.opacity(0.3))
+                    )
+            }
 
             // Note (if present)
             if let note = record.note {

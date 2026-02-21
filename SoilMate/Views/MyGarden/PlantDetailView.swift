@@ -23,9 +23,10 @@ struct PlantDetailView: View {
                         .fill(Color.green.opacity(0.12))
                         .frame(width: 160, height: 160)
                         .overlay(
-                            Image(systemName: "leaf.fill")
-                                .font(.system(size: 48))
-                                .foregroundColor(.green.opacity(0.3))
+                            Image("IMG_2411")
+                                .resizable()
+                                .scaledToFill()
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
                         )
                         .padding(.horizontal)
 
@@ -53,7 +54,7 @@ struct PlantDetailView: View {
 
                         VStack(spacing: 12) {
                             infoCard(title: "Light", value: "Flexible")
-                            infoCard(title: "Notification", value: "Enabled")
+                            infoCard(title: "Environment", value: "Indoor · Medium Pot")
                             infoCard(title: "Location", value: "Living Room")
                         }
 
@@ -117,14 +118,18 @@ struct PlantDetailView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Watering")
                 .font(.system(size: 20, weight: .bold))
-
-            Text("Every 3 Days")
+            
+            Text("Water until it drains from the bottom")
                 .font(.system(size: 15))
                 .foregroundColor(.secondary)
 
-            Text("200ml")
+            Text("Every 3 Days · 200ml")
                 .font(.system(size: 15))
                 .foregroundColor(.secondary)
+
+            //Text("200ml")
+            //    .font(.system(size: 15))
+             //   .foregroundColor(.secondary)
 
             Spacer(minLength: 14)
 
@@ -156,7 +161,7 @@ struct PlantDetailView: View {
                 .font(.system(size: 15))
                 .foregroundColor(.secondary)
 
-            Spacer(minLength: 14)
+            Spacer(minLength: 30)
 
             Text("Next:")
                 .font(.system(size: 18, weight: .semibold))

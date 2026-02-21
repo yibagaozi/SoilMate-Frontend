@@ -22,6 +22,7 @@ struct EditPlantView: View {
     @State private var feedingType = "General fertilizer"
     @State private var lightRequirement = "Flexible"
     @State private var location = "Living Room"
+    @State private var environment = "Indoor"
     @State private var enableNotification = true
 
     private let waterFrequencyOptions = [3, 5, 7, 10, 14, 21]
@@ -29,6 +30,7 @@ struct EditPlantView: View {
     private let feedingTypeOptions = ["General fertilizer", "Liquid fertilizer", "Slow-release", "Organic"]
     private let lightOptions = ["Full Sun", "Partial Sun", "Low Light", "Flexible"]
     private let locationOptions = ["Living Room", "Bedroom", "Balcony", "Office", "Kitchen"]
+    private let environmentOptions = ["Indoor", "Outdoor"]
 
     var body: some View {
         List {
@@ -202,6 +204,25 @@ struct EditPlantView: View {
                     } label: {
                         HStack(spacing: 4) {
                             Text(location)
+                                .foregroundColor(.secondary)
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundColor(Color(.tertiaryLabel))
+                        }
+                    }
+                }
+                
+                // Environment
+                HStack {
+                    Text("Environment")
+                    Spacer()
+                    Menu {
+                        ForEach(environmentOptions, id: \.self) { loc in
+                            Button(loc) { environment = loc }
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(environment)
                                 .foregroundColor(.secondary)
                             Image(systemName: "chevron.up.chevron.down")
                                 .font(.system(size: 10, weight: .medium))
