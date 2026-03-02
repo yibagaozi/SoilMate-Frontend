@@ -24,6 +24,8 @@ struct LoginView: View {
     @State private var orbOffset1: CGSize = .zero
     @State private var orbOffset2: CGSize = .zero
     @State private var orbOffset3: CGSize = .zero
+    
+    private let themeGreen = Color(red: 0.18, green: 0.62, blue: 0.35)
 
     var body: some View {
         GeometryReader { geo in
@@ -77,10 +79,10 @@ struct LoginView: View {
     private var gradientBackground: some View {
         LinearGradient(
             colors: [
-                Color(red: 0.92, green: 0.98, blue: 0.95),
-                Color(red: 0.88, green: 0.97, blue: 0.93),
-                Color(red: 0.84, green: 0.95, blue: 0.91),
-                Color(red: 0.80, green: 0.94, blue: 0.89),
+                Color(red: 0.82, green: 0.95, blue: 0.83),
+                Color(red: 0.75, green: 0.92, blue: 0.78),
+                Color(red: 0.68, green: 0.89, blue: 0.74),
+                Color(red: 0.62, green: 0.86, blue: 0.70),
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -97,8 +99,8 @@ struct LoginView: View {
                 .fill(
                     RadialGradient(
                         colors: [
-                            Color(red: 0.80, green: 0.95, blue: 0.88).opacity(0.35),
-                            Color(red: 0.85, green: 0.96, blue: 0.90).opacity(0.1),
+                            Color(red: 0.70, green: 0.91, blue: 0.74).opacity(0.4),
+                            Color(red: 0.75, green: 0.93, blue: 0.78).opacity(0.15),
                             Color.clear
                         ],
                         center: .center,
@@ -115,8 +117,8 @@ struct LoginView: View {
                 .fill(
                     RadialGradient(
                         colors: [
-                            Color(red: 0.82, green: 0.96, blue: 0.87).opacity(0.3),
-                            Color(red: 0.88, green: 0.97, blue: 0.91).opacity(0.08),
+                            Color(red: 0.66, green: 0.89, blue: 0.72).opacity(0.35),
+                            Color(red: 0.72, green: 0.91, blue: 0.76).opacity(0.1),
                             Color.clear
                         ],
                         center: .center,
@@ -133,7 +135,7 @@ struct LoginView: View {
                 .fill(
                     RadialGradient(
                         colors: [
-                            Color(red: 0.83, green: 0.96, blue: 0.90).opacity(0.25),
+                            Color(red: 0.68, green: 0.90, blue: 0.73).opacity(0.3),
                             Color.clear
                         ],
                         center: .center,
@@ -225,7 +227,7 @@ struct LoginView: View {
         .padding(.top, 28)
         .padding(.bottom, 28)
         .glassEffect(
-            .regular.tint(Color(red: 0.84, green: 0.95, blue: 0.91).opacity(0.15)),
+            .regular.tint(Color(red: 0.40, green: 0.60, blue: 0.45).opacity(0.08)),
             in: .rect(cornerRadius: 36)
         )
         .animation(.easeInOut(duration: 0.3), value: isRegisterMode)
@@ -343,7 +345,7 @@ struct LoginView: View {
         .padding(.horizontal, 18)
         .padding(.vertical, 16)
         .background(.white.opacity(0.7))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .clipShape(RoundedRectangle(cornerRadius: 32))
     }
     
     // MARK: - Password Field
@@ -378,7 +380,7 @@ struct LoginView: View {
         .padding(.horizontal, 18)
         .padding(.vertical, 16)
         .background(.white.opacity(0.7))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .clipShape(RoundedRectangle(cornerRadius: 32))
     }
 
     // MARK: - Submit Button
@@ -401,7 +403,7 @@ struct LoginView: View {
                 .padding(.vertical, 14)
                 .foregroundStyle(.white)
             }
-            .glassEffect(.regular.tint(.mint).interactive())
+            .glassEffect(.regular.tint(themeGreen).interactive())
             .opacity(isFormValid ? 1 : 0.45)
             .disabled(!isFormValid || authManager.isLoading)
             .animation(.easeInOut(duration: 0.25), value: isFormValid)
@@ -498,15 +500,13 @@ struct LoginView: View {
         text1.foregroundColor = .secondary
 
         var terms = AttributedString("Terms")
-        terms.foregroundColor = linkColor
-        terms.font = .system(size: 13, weight: .medium)
+        terms.foregroundColor = UIColor(themeGreen)
 
         var text2 = AttributedString(" and ")
         text2.foregroundColor = .secondary
 
         var privacy = AttributedString("Privacy Policy")
-        privacy.foregroundColor = linkColor
-        privacy.font = .system(size: 13, weight: .medium)
+        privacy.foregroundColor = UIColor(themeGreen)
 
         return text1 + terms + text2 + privacy
     }
