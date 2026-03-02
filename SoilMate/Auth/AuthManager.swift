@@ -11,96 +11,63 @@ import SwiftUI
 @Observable
 final class AuthManager {
 
-    // MARK: - Published State
-
-    /// true when user is logged in (has valid tokens)
-    var isLoggedIn: Bool = false
-
-    /// Current user info (set after login/register)
-    var currentUser: UserResponse?
-
-    /// Error message to show in UI
+    var isLoggedIn = false
+    var isLoading = false
     var errorMessage: String?
 
-    /// true while a login/register request is in progress
-    var isLoading: Bool = false
+    // true = 用模拟数据，不调后端
+    private let isMock: Bool
 
-    // MARK: - Init
-
-    init() {
-        // Check if we have a saved token on app launch
-        if KeychainHelper.read(key: KeychainHelper.accessTokenKey) != nil {
-            isLoggedIn = true
-        }
+    init(isMock: Bool = false) {
+        self.isMock = isMock
     }
-
-    // MARK: - Login
 
     func login(email: String, password: String) async {
         isLoading = true
         errorMessage = nil
 
-        do {
-            let body = LoginRequest(email: email, password: password)
-            let response: AuthResponse = try await NetworkClient.shared.authRequest(
-                APIEndpoints.login,
-                body: body
-            )
+        if isMock {
+            // 模拟网络延迟
+            try? await Task.sleep(for: .seconds(1))
 
-            saveTokens(response.tokens)
-            currentUser = response.user
-            isLoggedIn = true
-        } catch let error as ApiError {
-            errorMessage = error.errorDescription
-        } catch {
-            errorMessage = "Login failed"
+            // 模拟校验：固定密码 12345678 可以登录
+            if email.contains("@") && password == "12345678" {
+                isLoggedIn = true
+            } else {
+                errorMessage = "Invalid email or password"
+            }
+            isLoading = false
+            return
         }
 
+        // TODO: 真实登录逻辑
+        // let response = try await AuthService.login(...)
         isLoading = false
     }
-
-    // MARK: - Register
 
     func register(email: String, password: String, displayName: String) async {
         isLoading = true
         errorMessage = nil
 
-        do {
-            let body = RegisterRequest(
-                email: email,
-                password: password,
-                displayName: displayName
-            )
-            let response: AuthResponse = try await NetworkClient.shared.authRequest(
-                APIEndpoints.register,
-                body: body
-            )
+        if isMock {
+            try? await Task.sleep(for: .seconds(1.5))
 
-            saveTokens(response.tokens)
-            currentUser = response.user
-            isLoggedIn = true
-        } catch let error as ApiError {
-            errorMessage = error.errorDescription
-        } catch {
-            errorMessage = "Registration failed"
+            if password.count < 8 {
+                errorMessage = "Password must be at least 8 characters"
+            } else if email.contains("@") {
+                isLoggedIn = true
+            } else {
+                errorMessage = "Invalid email address"
+            }
+            isLoading = false
+            return
         }
 
+        // TODO: 真实注册逻辑
         isLoading = false
     }
 
-    // MARK: - Logout
-
     func logout() {
-        KeychainHelper.delete(key: KeychainHelper.accessTokenKey)
-        KeychainHelper.delete(key: KeychainHelper.refreshTokenKey)
-        currentUser = nil
         isLoggedIn = false
-    }
-
-    // MARK: - Helpers
-
-    private func saveTokens(_ tokens: TokenResponse) {
-        KeychainHelper.save(key: KeychainHelper.accessTokenKey, value: tokens.accessToken)
-        KeychainHelper.save(key: KeychainHelper.refreshTokenKey, value: tokens.refreshToken)
     }
 }

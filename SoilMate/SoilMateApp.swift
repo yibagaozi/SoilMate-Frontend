@@ -9,9 +9,19 @@ import SwiftUI
 
 @main
 struct SoilMateApp: App {
+
+    // for develop
+    @State private var authManager = AuthManager(isMock: true)
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            if authManager.isLoggedIn {
+                ContentView()
+                    .environment(authManager)
+            } else {
+                LoginView()
+                    .environment(authManager)
+            }
         }
     }
 }
