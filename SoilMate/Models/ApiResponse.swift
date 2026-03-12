@@ -8,7 +8,10 @@
 import Foundation
 
 struct ApiResponse<T: Decodable>: Decodable {
-    let success: Bool
+    let code: Int
     let message: String?
     let data: T?
+
+    /// Helper to check if request was successful
+    var success: Bool { code == 200 }
 }

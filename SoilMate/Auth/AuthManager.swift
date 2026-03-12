@@ -1,10 +1,3 @@
-//
-//  AuthManager.swift
-//  SoilMate
-//
-//  Created by yibagaozi on 2026/2/27.
-//
-
 import Foundation
 import SwiftUI
 
@@ -15,22 +8,24 @@ final class AuthManager {
     var isLoading = false
     var errorMessage: String?
 
-    // true = 用模拟数据，不调后端
     private let isMock: Bool
 
     init(isMock: Bool = false) {
         self.isMock = isMock
+        // Check for saved token on launch
+        if !isMock {
+            isLoggedIn = KeychainHelper.read(key: KeychainHelper.accessTokenKey) != nil
+        }
     }
+
+    // MARK: - Login
 
     func login(email: String, password: String) async {
         isLoading = true
         errorMessage = nil
 
         if isMock {
-            // 模拟网络延迟
             try? await Task.sleep(for: .seconds(1))
-
-            // 模拟校验：固定密码 12345678 可以登录
             if email.contains("@") && password == "12345678" {
                 isLoggedIn = true
             } else {
@@ -40,10 +35,26 @@ final class AuthManager {
             return
         }
 
-        // TODO: 真实登录逻辑
-        // let response = try await AuthService.login(...)
+        do {
+            let request = LoginRequest(email: email, password: password)
+            let auth: AuthResponse = try await NetworkClient.shared.authRequest(
+                APIEndpoints.login,
+                body: request
+            )
+            saveTokens(auth.tokens)
+            isLoggedIn = true
+        } catch ApiError.unauthorized {
+            errorMessage = "Invalid email or password"
+        } catch let error as ApiError {
+            errorMessage = error.errorDescription
+        } catch {
+            errorMessage = "Network error. Please try again."
+        }
+
         isLoading = false
     }
+
+    // MARK: - Register
 
     func register(email: String, password: String, displayName: String) async {
         isLoading = true
@@ -51,7 +62,6 @@ final class AuthManager {
 
         if isMock {
             try? await Task.sleep(for: .seconds(1.5))
-
             if password.count < 8 {
                 errorMessage = "Password must be at least 8 characters"
             } else if email.contains("@") {
@@ -63,11 +73,41 @@ final class AuthManager {
             return
         }
 
-        // TODO: 真实注册逻辑
+        do {
+            let request = RegisterRequest(
+                email: email,
+                password: password,
+                displayName: displayName
+            )
+            let auth: AuthResponse = try await NetworkClient.shared.authRequest(
+                APIEndpoints.register,
+                body: request
+            )
+            saveTokens(auth.tokens)
+            isLoggedIn = true
+        } catch ApiError.conflict {
+            errorMessage = "This email is already registered"
+        } catch let error as ApiError {
+            errorMessage = error.errorDescription
+        } catch {
+            errorMessage = "Network error. Please try again."
+        }
+
         isLoading = false
     }
 
+    // MARK: - Logout
+
     func logout() {
+        KeychainHelper.delete(key: KeychainHelper.accessTokenKey)
+        KeychainHelper.delete(key: KeychainHelper.refreshTokenKey)
         isLoggedIn = false
+    }
+
+    // MARK: - Token Storage
+
+    private func saveTokens(_ tokens: TokenResponse) {
+        KeychainHelper.save(key: KeychainHelper.accessTokenKey, value: tokens.accessToken)
+        KeychainHelper.save(key: KeychainHelper.refreshTokenKey, value: tokens.refreshToken)
     }
 }

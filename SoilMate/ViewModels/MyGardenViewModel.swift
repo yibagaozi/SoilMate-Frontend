@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 @Observable
 final class MyGardenViewModel {
@@ -20,6 +21,11 @@ final class MyGardenViewModel {
 
     var isLoading = false
     var errorMessage: String?
+    
+    struct CareStatus {
+        let text: String
+        let color: Color
+    }
 
     // MARK: - Load
 
@@ -56,7 +62,34 @@ final class MyGardenViewModel {
     // MARK: - Helpers
 
     /// "Tomorrow", "Today", "In 6 Days", etc. based on next watering date
-    func wateringStatus(_ plant: UserPlantDetail) -> String {
-        DateHelper.relativeDayText(from: plant.nextWateringDate)
+    func nextCareStatus(_ plant: UserPlantDetail) -> CareStatus {
+        let waterDate = DateHelper.parseDate(plant.nextWateringDate)
+        let feedDate = DateHelper.parseDate(plant.nextFeedingDate)
+
+        let isWaterSooner: Bool
+        let dateString: String?
+
+        switch (waterDate, feedDate) {
+        case let (w?, f?):
+            isWaterSooner = w <= f
+            dateString = isWaterSooner ? plant.nextWateringDate : plant.nextFeedingDate
+        case (_, nil):
+            isWaterSooner = true
+            dateString = plant.nextWateringDate
+        case (nil, _):
+            isWaterSooner = false
+            dateString = plant.nextFeedingDate
+        }
+
+        let text = DateHelper.relativeDayText(from: dateString)
+
+        let color: Color = switch text {
+        case "Overdue":  .red
+        case "Today":    .mint
+        case "Tomorrow": .purple
+        default:         isWaterSooner ? .blue : .orange
+        }
+
+        return CareStatus(text: text, color: color)
     }
 }

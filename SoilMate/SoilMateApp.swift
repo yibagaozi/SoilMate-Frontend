@@ -11,7 +11,7 @@ import SwiftUI
 struct SoilMateApp: App {
 
     // for develop
-    @State private var authManager = AuthManager(isMock: true)
+    @State private var authManager = AuthManager(isMock: false)
 
     var body: some Scene {
         WindowGroup {
