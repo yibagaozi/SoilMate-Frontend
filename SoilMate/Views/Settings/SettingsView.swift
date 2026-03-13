@@ -9,47 +9,40 @@ import SwiftUI
 
 struct SettingsView: View {
 
-    private let headerHeight: CGFloat = 48
+    @Environment(AuthManager.self) private var authManager
+    @State private var viewModel = SettingsViewModel()
 
-    @State private var enableReminders = true
-    @State private var syncCalendar = true
-    @State private var sound = "Default"
-    
-    @State private var reminderTime = {
-        var components = DateComponents()
-        components.hour = 8
-        components.minute = 0
-        return Calendar.current.date(from: components) ?? Date()
-    }()
-    
+    private let headerHeight: CGFloat = 48
     private let presetSound = ["Default", "Note", "Glass", "Bell", "Signal", "Pulse", "Tri-tone"]
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 6) {
-                // MARK: Header
                 header
 
-                // MARK: List
                 List {
-                    // ── Profile ──
+                    // MARK: - Profile
                     Section {
                         HStack(spacing: 14) {
-                            Circle()
-                                .fill(Color.gray.opacity(0.3))
+                            // Avatar
+                            if let urlStr = viewModel.avatarUrl, let url = URL(string: urlStr) {
+                                AsyncImage(url: url) { image in
+                                    image.resizable().scaledToFill()
+                                } placeholder: {
+                                    avatarPlaceholder
+                                }
                                 .frame(width: 60, height: 60)
-                                .overlay(
-                                    Image(systemName: "person.fill")
-                                        .foregroundColor(.gray)
-                                        .font(.system(size: 24))
-                                )
+                                .clipShape(Circle())
+                            } else {
+                                avatarPlaceholder
+                            }
 
                             VStack(alignment: .leading, spacing: 3) {
-                                Text("Rachel")
+                                Text(viewModel.displayName.isEmpty ? "User" : viewModel.displayName)
                                     .font(.system(size: 18, weight: .semibold))
-                                Text(verbatim: "rachel1211@gmail.com")
-                                        .font(.system(size: 14))
-                                        .foregroundStyle(.secondary)
+                                Text(viewModel.email)
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(.secondary)
                             }
 
                             Spacer()
@@ -64,11 +57,10 @@ struct SettingsView: View {
                             }
                         }
                         .padding(.vertical, 4)
-                        .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
 
-                        // logout
+                        // Logout button
                         Button(role: .destructive) {
-                            print("Logout")
+                            authManager.logout()
                         } label: {
                             HStack {
                                 Spacer()
@@ -79,26 +71,32 @@ struct SettingsView: View {
                         .listRowSeparator(.hidden, edges: .bottom)
                     }
 
-                    // ── Notifications ──
+                    // MARK: - Notifications
                     Section("Notifications") {
-                        Toggle("Enable Reminders", isOn: $enableReminders)
+                        Toggle("Enable Reminders", isOn: $viewModel.notificationEnabled)
                             .tint(.mint)
+                            .onChange(of: viewModel.notificationEnabled) { _, _ in
+                                Task { await viewModel.saveSettings() }
+                            }
 
                         DatePicker("Reminder Time",
-                                   selection: $reminderTime,
+                                   selection: $viewModel.reminderTime,
                                    displayedComponents: .hourAndMinute)
                         .tint(.mint)
-                        
+                        .onChange(of: viewModel.reminderTime) { _, _ in
+                            Task { await viewModel.saveSettings() }
+                        }
+
                         HStack {
                             Text("Sound")
                             Spacer()
                             Menu {
                                 ForEach(presetSound, id: \.self) { option in
-                                    Button(option) { sound = option }
+                                    Button(option) { viewModel.sound = option }
                                 }
                             } label: {
                                 HStack(spacing: 4) {
-                                    Text(sound)
+                                    Text(viewModel.sound)
                                         .foregroundColor(.secondary)
                                     Image(systemName: "chevron.up.chevron.down")
                                         .font(.system(size: 12, weight: .medium))
@@ -108,19 +106,18 @@ struct SettingsView: View {
                         }
                     }
 
-                    // ── Calendar ──
+                    // MARK: - Calendar
                     Section("Calendar") {
-                        Toggle("Sync Calendar", isOn: $syncCalendar)
+                        Toggle("Sync Calendar", isOn: $viewModel.syncCalendar)
                             .tint(.mint)
                     }
 
-                    // ── About ──
+                    // MARK: - About
                     Section("About") {
                         HStack {
                             Text("Version")
                             Spacer()
-                            Text("V1.0.0")
-                                .foregroundColor(.secondary)
+                            Text("V1.0.0").foregroundColor(.secondary)
                         }
 
                         HStack {
@@ -145,6 +142,9 @@ struct SettingsView: View {
             }
             .background(Color(.systemGroupedBackground))
             .navigationBarHidden(true)
+            .task {
+                await viewModel.load()
+            }
         }
         .tint(nil)
     }
@@ -156,7 +156,6 @@ struct SettingsView: View {
             Text("Settings")
                 .font(.largeTitle)
                 .fontWeight(.bold)
-
             Spacer()
         }
         .padding(.horizontal)
@@ -164,8 +163,22 @@ struct SettingsView: View {
         .padding(.bottom, 0)
         .frame(height: headerHeight, alignment: .center)
     }
+
+    // MARK: - Avatar Placeholder
+
+    private var avatarPlaceholder: some View {
+        Circle()
+            .fill(Color.gray.opacity(0.3))
+            .frame(width: 60, height: 60)
+            .overlay(
+                Image(systemName: "person.fill")
+                    .foregroundColor(.gray)
+                    .font(.system(size: 24))
+            )
+    }
 }
 
 #Preview {
     SettingsView()
+        .environment(AuthManager())
 }

@@ -7,29 +7,10 @@
 
 import SwiftUI
 
-// MARK: - Up Next Data Model
-
-private struct UpNextItem: Identifiable {
-    let id = UUID()
-    let name: String
-    let location: String
-    let statusText: String
-    let statusColor: Color
-    let imageName: String?      // nil falls back to leaf placeholder
-}
-
-private let upNextItems: [UpNextItem] = [
-    UpNextItem(name: "Snake Plant", location: "Living Room",
-               statusText: "Tomorrow",  statusColor: .orange, imageName: "IMG_2411"),
-    UpNextItem(name: "Succulent",   location: "Balcony",
-               statusText: "In 6 Days", statusColor: .blue,   imageName: "IMG_2413"),
-    UpNextItem(name: "Monstera",    location: "Office",
-               statusText: "In 6 Days", statusColor: .blue,   imageName: "IMG_2414"),
-]
-
-// MARK: - Home View
-
 struct HomeView: View {
+
+    @State private var viewModel = HomeViewModel()
+
     private let headerHeight: CGFloat = 48
 
     var body: some View {
@@ -38,121 +19,27 @@ struct HomeView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     header
 
-                    // ── Today's Tasks ──
+                    // MARK: - Today's Tasks
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Today's Tasks")
                             .font(.title3)
                             .fontWeight(.semibold)
                             .padding(.horizontal)
 
-                        // Full-square card with floating text overlay
-                        Image("IMG_2411")
-                            .resizable()
-                            .scaledToFill()
-                            .frame(maxWidth: .infinity)
-                            .aspectRatio(1, contentMode: .fit)
-                            .clipShape(RoundedRectangle(cornerRadius: 30))
-                            .overlay(alignment: .bottom) {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("Snake Plant")
-                                        .font(.title2)
-                                        .fontWeight(.bold)
-
-                                    Text("Living Room")
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text("Watering needed")
-                                                .font(.body)
-                                                .fontWeight(.semibold)
-
-                                            Text("200ml · scheduled for 8:00 AM")
-                                                .font(.subheadline)
-                                                .foregroundColor(.secondary)
-                                        }
-
-                                        Spacer()
-
-                                        Button(action: { print("Task completed") }) {
-                                            Image(systemName: "checkmark")
-                                                .foregroundColor(.white)
-                                                .fontWeight(.bold)
-                                                .frame(width: 30, height: 40)
-                                        }
-                                        .buttonStyle(.glassProminent)
-                                        .tint(.mint)
-                                    }
-                                }
-                                .padding()
-                                .frame(maxWidth: .infinity)          // stretch to full card width
-                                .glassEffect(
-                                    .regular,
-                                    in: .rect(
-                                        topLeadingRadius: 0,
-                                        bottomLeadingRadius: 30,
-                                        bottomTrailingRadius: 30,
-                                        topTrailingRadius: 0
-                                    )
-                                )
-                            }
-                            .padding(.horizontal)
+                        if viewModel.isLoading {
+                            ProgressView()
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 60)
+                        } else if let task = viewModel.todayTask {
+                            todayCard(task)
+                        } else {
+                            emptyTodayCard
+                        }
                     }
 
-                    // ── Up Next ──
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text("Up Next")
-                            .font(.title3)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.gray)
-                            .padding(.horizontal)
-                            .padding(.top, 20)
-
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            GlassEffectContainer(spacing: 16) {
-                                HStack(spacing: 16) {
-                                    ForEach(upNextItems) { item in
-                                        VStack(alignment: .leading, spacing: 8) {
-
-                                            // Plant thumbnail — real image or leaf placeholder
-                                            if let name = item.imageName {
-                                                Image(name)
-                                                    .resizable()
-                                                    .scaledToFill()
-                                                    .frame(width: 100, height: 100)
-                                                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                                            } else {
-                                                RoundedRectangle(cornerRadius: 16)
-                                                    .fill(Color.green.opacity(0.3))
-                                                    .frame(width: 100, height: 100)
-                                                    .overlay(
-                                                        Image(systemName: "leaf.fill")
-                                                            .font(.system(size: 30))
-                                                            .foregroundColor(.green.opacity(0.5))
-                                                    )
-                                            }
-
-                                            Text(item.name)
-                                                .font(.headline)
-                                            Text(item.location)
-                                                .font(.caption)
-                                                .foregroundColor(.gray)
-                                            Text(item.statusText)
-                                                .font(.subheadline)
-                                                .fontWeight(.semibold)
-                                                .foregroundColor(item.statusColor)
-                                        }
-                                        .padding()
-                                        .frame(width: 180, alignment: .leading)
-                                        .glassEffect(.regular, in: .rect(cornerRadius: 20))
-                                    }
-                                }
-                                .padding(.horizontal)
-                                .padding(.top, 20)
-                                .padding(.bottom, 40)
-                            }
-                        }
+                    // MARK: - Up Next
+                    if !viewModel.upcomingTasks.isEmpty {
+                        upNextSection
                     }
 
                     Spacer(minLength: 20)
@@ -161,6 +48,9 @@ struct HomeView: View {
             }
             .background(Color(.systemGroupedBackground))
             .navigationBarHidden(true)
+            .task {
+                await viewModel.load()
+            }
         }
     }
 
@@ -188,9 +78,178 @@ struct HomeView: View {
         .padding(.bottom, 16)
         .frame(height: headerHeight, alignment: .center)
     }
-}
 
-// MARK: - Preview
+    // MARK: - Today Card (real data)
+
+    private func todayCard(_ task: CareTaskItem) -> some View {
+        // Plant image or placeholder
+        ZStack(alignment: .bottom) {
+            // Background image
+            plantImage(url: task.plantImageUrl)
+                .frame(maxWidth: .infinity)
+                .aspectRatio(1, contentMode: .fit)
+                .clipShape(RoundedRectangle(cornerRadius: 30))
+
+            // Info overlay at bottom
+            VStack(alignment: .leading, spacing: 8) {
+                Text(task.plantNickname ?? "Plant")
+                    .font(.title2)
+                    .fontWeight(.bold)
+
+                Text(task.isWatering ? "Watering needed" : "Feeding needed")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(task.isWatering ? "Watering needed" : "Feeding needed")
+                            .font(.body)
+                            .fontWeight(.semibold)
+
+                        Text(viewModel.taskDetailText(task))
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+
+                    Spacer()
+
+                    Button {
+                        Task { await viewModel.completeTask(task) }
+                    } label: {
+                        Image(systemName: "checkmark")
+                            .foregroundColor(.white)
+                            .fontWeight(.bold)
+                            .frame(width: 30, height: 40)
+                    }
+                    .buttonStyle(.glassProminent)
+                    .tint(.mint)
+                }
+            }
+            .padding()
+            .frame(maxWidth: .infinity)
+            .glassEffect(
+                .regular,
+                in: .rect(
+                    topLeadingRadius: 0,
+                    bottomLeadingRadius: 30,
+                    bottomTrailingRadius: 30,
+                    topTrailingRadius: 0
+                )
+            )
+        }
+        .padding(.horizontal)
+    }
+
+    // MARK: - Empty Today Card
+
+    private var emptyTodayCard: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 40))
+                .foregroundColor(.mint.opacity(0.5))
+
+            Text("All done for today!")
+                .font(.headline)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 60)
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 30))
+        .padding(.horizontal)
+    }
+
+    // MARK: - Up Next Section
+
+    private var upNextSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Up Next")
+                .font(.title3)
+                .fontWeight(.semibold)
+                .foregroundColor(.gray)
+                .padding(.horizontal)
+                .padding(.top, 20)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                GlassEffectContainer(spacing: 16) {
+                    HStack(spacing: 16) {
+                        ForEach(viewModel.upcomingTasks) { task in
+                            upNextCard(task)
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.top, 20)
+                    .padding(.bottom, 40)
+                }
+            }
+        }
+    }
+
+    private func upNextCard(_ task: CareTaskItem) -> some View {
+        let statusText = viewModel.statusText(task)
+        let statusColor = statusColorFor(statusText)
+
+        return VStack(alignment: .leading, spacing: 8) {
+            plantImage(url: task.plantImageUrl)
+                .frame(width: 100, height: 100)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+
+            Text(task.plantNickname ?? "Plant")
+                .font(.headline)
+
+            Text(task.isWatering ? "Watering" : "Feeding")
+                .font(.caption)
+                .foregroundColor(.gray)
+
+            Text(statusText)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundColor(statusColor)
+        }
+        .padding()
+        .frame(width: 180, alignment: .leading)
+        .glassEffect(.regular, in: .rect(cornerRadius: 20))
+    }
+
+    // MARK: - Helpers
+
+    /// Load image from URL or show placeholder
+    private func plantImage(url: String?) -> some View {
+        Group {
+            if let url, let imageURL = URL(string: url) {
+                AsyncImage(url: imageURL) { image in
+                    image
+                        .resizable()
+                        .scaledToFill()
+                } placeholder: {
+                    leafPlaceholder
+                }
+            } else {
+                leafPlaceholder
+            }
+        }
+    }
+
+    private var leafPlaceholder: some View {
+        RoundedRectangle(cornerRadius: 16)
+            .fill(Color.green.opacity(0.12))
+            .overlay(
+                Image(systemName: "leaf.fill")
+                    .font(.system(size: 30))
+                    .foregroundColor(.green.opacity(0.4))
+            )
+    }
+
+    /// Pick color based on status text
+    private func statusColorFor(_ text: String) -> Color {
+        switch text {
+        case "Overdue": return .red
+        case "Today":   return .blue
+        case "Tomorrow": return .orange
+        default:         return .mint
+        }
+    }
+}
 
 #Preview {
     HomeView()

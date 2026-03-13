@@ -494,7 +494,6 @@ struct LoginView: View {
     }
 
     private var footerAttributedString: AttributedString {
-        let linkColor = Color(red: 0.17, green: 0.72, blue: 0.56)
 
         var text1 = AttributedString("By continuing, you agree to our\n")
         text1.foregroundColor = .secondary
