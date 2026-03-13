@@ -8,23 +8,17 @@ import SwiftUI
 
 struct EditPlantView: View {
 
-    @Environment(\.dismiss) private var dismiss
+    let userPlantId: Int64
 
-    // Text fields (editable via UIKit)
-    @State private var officialName = "Sansevieria trifasciata"
-    @State private var commonName = "Snake Plant"
-    @State private var nickname = "MySnakePlant"
+    @Environment(\.dismiss) private var dismiss
+    @State private var viewModel: EditPlantViewModel
+
+    init(userPlantId: Int64) {
+        self.userPlantId = userPlantId
+        self._viewModel = State(initialValue: EditPlantViewModel(userPlantId: userPlantId))
+    }
 
     // Pickers
-    @State private var waterFrequency = 3
-    @State private var waterAmount = 200
-    @State private var feedingFrequency = 6
-    @State private var feedingType = "General fertilizer"
-    @State private var lightRequirement = "Flexible"
-    @State private var location = "Living Room"
-    @State private var environment = "Indoor"
-    @State private var enableNotification = true
-
     private let waterFrequencyOptions = [3, 5, 7, 10, 14, 21]
     private let feedingFrequencyOptions = [15, 30, 60, 90, 120]
     private let feedingTypeOptions = ["General fertilizer", "Liquid fertilizer", "Slow-release", "Organic"]
@@ -37,22 +31,21 @@ struct EditPlantView: View {
 
             // ── Official Name ──
             Section {
-                Text(officialName)
+                Text(viewModel.officialName.isEmpty ? "—" : viewModel.officialName)
             } header: {
                 Text("Official Name")
             }
 
             // ── Common Name (display only) ──
             Section {
-                Text(commonName)
+                Text(viewModel.commonName.isEmpty ? "—" : viewModel.commonName)
             } header: {
                 Text("Common Name")
             }
 
             // ── Nickname (editable, native SwiftUI) ──
             Section {
-                //TextField("Nickname", text: $nickname)
-                UIKitTextField(text: $nickname, placeholder: "Nickname")
+                UIKitTextField(text: $viewModel.nickname, placeholder: "Nickname")
             } header: {
                 Text("Nickname")
             }
@@ -65,11 +58,11 @@ struct EditPlantView: View {
                     Spacer()
                     Menu {
                         ForEach(waterFrequencyOptions, id: \.self) { days in
-                            Button("\(days) Days") { waterFrequency = days }
+                            Button("\(days) Days") { viewModel.waterFrequency = days }
                         }
                     } label: {
                         HStack(spacing: 4) {
-                            Text("\(waterFrequency) Days")
+                            Text("\(viewModel.waterFrequency) Days")
                                 .foregroundColor(.secondary)
                             Image(systemName: "chevron.up.chevron.down")
                                 .font(.system(size: 10, weight: .medium))
@@ -84,7 +77,7 @@ struct EditPlantView: View {
                     Spacer()
                     HStack(spacing: 0) {
                         Button {
-                            if waterAmount > 50 { waterAmount -= 50 }
+                            if viewModel.waterAmount > 50 { viewModel.waterAmount -= 50 }
                         } label: {
                             Image(systemName: "minus")
                                 .font(.system(size: 13, weight: .medium))
@@ -95,7 +88,7 @@ struct EditPlantView: View {
 
                         Divider().frame(height: 20)
 
-                        Text("\(waterAmount) ml")
+                        Text("\(viewModel.waterAmount) ml")
                             .font(.system(size: 15))
                             .foregroundColor(.secondary)
                             .frame(minWidth: 60)
@@ -103,7 +96,7 @@ struct EditPlantView: View {
                         Divider().frame(height: 20)
 
                         Button {
-                            waterAmount += 50
+                            viewModel.waterAmount += 50
                         } label: {
                             Image(systemName: "plus")
                                 .font(.system(size: 13, weight: .medium))
@@ -122,11 +115,11 @@ struct EditPlantView: View {
                     Spacer()
                     Menu {
                         ForEach(feedingFrequencyOptions, id: \.self) { months in
-                            Button("\(months) Days") { feedingFrequency = months }
+                            Button("\(months) Days") { viewModel.feedingFrequency = months }
                         }
                     } label: {
                         HStack(spacing: 4) {
-                            Text("\(feedingFrequency) Days")
+                            Text("\(viewModel.feedingFrequency) Days")
                                 .foregroundColor(.secondary)
                             Image(systemName: "chevron.up.chevron.down")
                                 .font(.system(size: 10, weight: .medium))
@@ -141,11 +134,11 @@ struct EditPlantView: View {
                     Spacer()
                     Menu {
                         ForEach(feedingTypeOptions, id: \.self) { type in
-                            Button(type) { feedingType = type }
+                            Button(type) { viewModel.feedingType = type }
                         }
                     } label: {
                         HStack(spacing: 4) {
-                            Text(feedingType)
+                            Text(viewModel.feedingType)
                                 .foregroundColor(.secondary)
                             Image(systemName: "chevron.up.chevron.down")
                                 .font(.system(size: 10, weight: .medium))
@@ -160,11 +153,11 @@ struct EditPlantView: View {
                     Spacer()
                     Menu {
                         ForEach(lightOptions, id: \.self) { option in
-                            Button(option) { lightRequirement = option }
+                            Button(option) { viewModel.lightRequirement = option }
                         }
                     } label: {
                         HStack(spacing: 4) {
-                            Text(lightRequirement)
+                            Text(viewModel.lightRequirement)
                                 .foregroundColor(.secondary)
                             Image(systemName: "chevron.up.chevron.down")
                                 .font(.system(size: 10, weight: .medium))
@@ -196,14 +189,14 @@ struct EditPlantView: View {
                     Spacer()
                     Menu {
                         ForEach(locationOptions, id: \.self) { loc in
-                            Button(loc) { location = loc }
+                            Button(loc) { viewModel.location = loc }
                         }
                         Button("Custom…") {
                             presentCustomLocationAlert()
                         }
                     } label: {
                         HStack(spacing: 4) {
-                            Text(location)
+                            Text(viewModel.location.isEmpty ? "Choose" : viewModel.location)
                                 .foregroundColor(.secondary)
                             Image(systemName: "chevron.up.chevron.down")
                                 .font(.system(size: 10, weight: .medium))
@@ -211,18 +204,18 @@ struct EditPlantView: View {
                         }
                     }
                 }
-                
+
                 // Environment
                 HStack {
                     Text("Environment")
                     Spacer()
                     Menu {
                         ForEach(environmentOptions, id: \.self) { loc in
-                            Button(loc) { environment = loc }
+                            Button(loc) { viewModel.environment = loc }
                         }
                     } label: {
                         HStack(spacing: 4) {
-                            Text(environment)
+                            Text(viewModel.environment)
                                 .foregroundColor(.secondary)
                             Image(systemName: "chevron.up.chevron.down")
                                 .font(.system(size: 10, weight: .medium))
@@ -232,8 +225,21 @@ struct EditPlantView: View {
                 }
 
                 // Notification
-                Toggle("Notification", isOn: $enableNotification)
+                Toggle("Notification", isOn: $viewModel.enableNotification)
                     .tint(.mint)
+            }
+
+            // ── Error Message ──
+            if let error = viewModel.errorMessage {
+                Section {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.orange)
+                        Text(error)
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                    }
+                }
             }
         }
         .listStyle(.insetGrouped)
@@ -241,16 +247,23 @@ struct EditPlantView: View {
         // Floating Save button
         .safeAreaInset(edge: .bottom) {
             Button {
-                // TODO: Save changes
-                dismiss()
+                Task { await viewModel.save() }
             } label: {
-                Text("Save")
-                    .font(.system(size: 17, weight: .semibold))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 28)
+                HStack(spacing: 8) {
+                    if viewModel.isSaving {
+                        ProgressView()
+                            .tint(.white)
+                    } else {
+                        Text("Save")
+                            .font(.system(size: 17, weight: .semibold))
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 28)
             }
             .buttonStyle(.glassProminent)
             .tint(.mint)
+            .disabled(viewModel.isSaving)
             .padding(.horizontal, 36)
             .padding(.vertical, 0)
         }
@@ -268,6 +281,14 @@ struct EditPlantView: View {
                 }
             }
         }
+        // Load existing data
+        .task {
+            await viewModel.load()
+        }
+        // Dismiss after save
+        .onChange(of: viewModel.didSave) { _, saved in
+            if saved { dismiss() }
+        }
     }
 
     // MARK: - Custom Location Alert (UIKit)
@@ -284,7 +305,7 @@ struct EditPlantView: View {
         alert.addAction(UIAlertAction(title: "Save", style: .default) { _ in
             if let text = alert.textFields?.first?.text,
                !text.trimmingCharacters(in: .whitespaces).isEmpty {
-                location = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                viewModel.location = text.trimmingCharacters(in: .whitespacesAndNewlines)
             }
         })
         topVC.present(alert, animated: true)
@@ -359,6 +380,6 @@ private extension UIApplication {
 
 #Preview {
     NavigationStack {
-        EditPlantView()
+        EditPlantView(userPlantId: 1)
     }
 }

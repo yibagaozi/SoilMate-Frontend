@@ -15,19 +15,10 @@ struct AddPlantView: View {
 
     @Environment(\.dismiss) private var dismiss
 
+    @State private var viewModel = AddPlantViewModel()
+
     @State private var scannedCode: String? = nil
     @State private var cameraPermissionGranted = false
-
-    @State private var nickname = ""
-    @State private var potSize = "M"
-    @State private var environment = "Indoor"
-    @State private var waterFrequency = 14
-    @State private var waterAmount = 200
-    @State private var feedingFrequency = 60
-    @State private var lightRequirement = "Flexible"
-    @State private var location = ""
-
-    @State private var enableNotification = true
 
     @State private var showLocationDialog = false
     @State private var showPotSizeInfo = false
@@ -63,7 +54,7 @@ struct AddPlantView: View {
                             Text("Nickname")
                                 .foregroundColor(.primary)
                             Spacer()
-                            Text(nickname.isEmpty ? "—" : nickname)
+                            Text(viewModel.nickname.isEmpty ? "—" : viewModel.nickname)
                                 .foregroundColor(.secondary)
                             Text("Edit")
                                 .foregroundColor(.secondary)
@@ -94,14 +85,14 @@ struct AddPlantView: View {
                         HStack(spacing: 0) {
                             ForEach(potSizeOptions, id: \.self) { size in
                                 Button {
-                                    potSize = size
+                                    viewModel.potSize = size
                                 } label: {
                                     Text(size)
-                                        .font(.system(size: 14, weight: potSize == size ? .semibold : .regular))
-                                        .foregroundColor(potSize == size ? .white : .secondary)
+                                        .font(.system(size: 14, weight: viewModel.potSize == size ? .semibold : .regular))
+                                        .foregroundColor(viewModel.potSize == size ? .white : .secondary)
                                         .frame(width: 36, height: 30)
                                         .background(
-                                            potSize == size
+                                            viewModel.potSize == size
                                                 ? Color.mint
                                                 : Color.clear
                                         )
@@ -123,11 +114,11 @@ struct AddPlantView: View {
                         Spacer()
                         Menu {
                             ForEach(environmentOptions, id: \.self) { option in
-                                Button(option) { environment = option }
+                                Button(option) { viewModel.environment = option }
                             }
                         } label: {
                             HStack(spacing: 4) {
-                                Text(environment)
+                                Text(viewModel.environment)
                                     .foregroundColor(.secondary)
                                 Image(systemName: "chevron.up.chevron.down")
                                     .font(.system(size: 10, weight: .medium))
@@ -142,14 +133,14 @@ struct AddPlantView: View {
                         Spacer()
                         Menu {
                             ForEach(presetLocations, id: \.self) { loc in
-                                Button(loc) { location = loc }
+                                Button(loc) { viewModel.location = loc }
                             }
                             Button("Custom…") {
                                 presentCustomLocationAlert()
                             }
                         } label: {
                             HStack(spacing: 4) {
-                                Text(location.isEmpty ? "Choose" : location)
+                                Text(viewModel.location.isEmpty ? "Choose" : viewModel.location)
                                     .foregroundColor(.secondary)
                                 Image(systemName: "chevron.up.chevron.down")
                                     .font(.system(size: 10, weight: .medium))
@@ -159,7 +150,7 @@ struct AddPlantView: View {
                     }
 
                     // Notification
-                    Toggle("Notification", isOn: $enableNotification)
+                    Toggle("Notification", isOn: $viewModel.enableNotification)
                         .tint(.mint)
                 }
 
@@ -172,11 +163,11 @@ struct AddPlantView: View {
                         Spacer()
                         Menu {
                             ForEach(waterFrequencyOptions, id: \.self) { days in
-                                Button("\(days) Days") { waterFrequency = days }
+                                Button("\(days) Days") { viewModel.waterFrequency = days }
                             }
                         } label: {
                             HStack(spacing: 4) {
-                                Text("\(waterFrequency) Days")
+                                Text("\(viewModel.waterFrequency) Days")
                                     .foregroundColor(.secondary)
                                 Image(systemName: "chevron.up.chevron.down")
                                     .font(.system(size: 10, weight: .medium))
@@ -191,7 +182,7 @@ struct AddPlantView: View {
                         Spacer()
                         HStack(spacing: 0) {
                             Button {
-                                if waterAmount > 50 { waterAmount -= 50 }
+                                if viewModel.waterAmount > 50 { viewModel.waterAmount -= 50 }
                             } label: {
                                 Image(systemName: "minus")
                                     .font(.system(size: 13, weight: .medium))
@@ -202,7 +193,7 @@ struct AddPlantView: View {
 
                             Divider().frame(height: 20)
 
-                            Text("\(waterAmount) ml")
+                            Text("\(viewModel.waterAmount) ml")
                                 .font(.system(size: 15))
                                 .foregroundColor(.secondary)
                                 .frame(minWidth: 60)
@@ -210,7 +201,7 @@ struct AddPlantView: View {
                             Divider().frame(height: 20)
 
                             Button {
-                                waterAmount += 50
+                                viewModel.waterAmount += 50
                             } label: {
                                 Image(systemName: "plus")
                                     .font(.system(size: 13, weight: .medium))
@@ -229,11 +220,11 @@ struct AddPlantView: View {
                         Spacer()
                         Menu {
                             ForEach(feedingOptions, id: \.self) { days in
-                                Button("\(days) Days") { feedingFrequency = days }
+                                Button("\(days) Days") { viewModel.feedingFrequency = days }
                             }
                         } label: {
                             HStack(spacing: 4) {
-                                Text("\(feedingFrequency) Days")
+                                Text("\(viewModel.feedingFrequency) Days")
                                     .foregroundColor(.secondary)
                                 Image(systemName: "chevron.up.chevron.down")
                                     .font(.system(size: 10, weight: .medium))
@@ -248,11 +239,11 @@ struct AddPlantView: View {
                         Spacer()
                         Menu {
                             ForEach(lightOptions, id: \.self) { option in
-                                Button(option) { lightRequirement = option }
+                                Button(option) { viewModel.lightRequirement = option }
                             }
                         } label: {
                             HStack(spacing: 4) {
-                                Text(lightRequirement)
+                                Text(viewModel.lightRequirement)
                                     .foregroundColor(.secondary)
                                 Image(systemName: "chevron.up.chevron.down")
                                     .font(.system(size: 10, weight: .medium))
@@ -266,20 +257,42 @@ struct AddPlantView: View {
                 Section("Watering") {
                     wateringBlock
                 }
+
+                // ── Error Message ──
+                if let error = viewModel.errorMessage {
+                    Section {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                            Text(error)
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
             }
             .listStyle(.insetGrouped)
             .listSectionSpacing(.compact)
             .safeAreaInset(edge: .bottom) {
                 Button {
-                    print("Add to My Garden")
+                    Task { await viewModel.addToGarden() }
                 } label: {
-                    Text("Add to My Garden")
-                        .font(.system(size: 17, weight: .semibold))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 28)
+                    HStack(spacing: 8) {
+                        if viewModel.isAdding {
+                            ProgressView()
+                                .tint(.white)
+                        } else {
+                            Text("Add to My Garden")
+                                .font(.system(size: 17, weight: .semibold))
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 36)
                 }
                 .buttonStyle(.glassProminent)
                 .tint(.mint)
+                .disabled(!viewModel.hasPlant || viewModel.isAdding)
+                .opacity(viewModel.hasPlant ? 1 : 0.9)
                 .padding(.horizontal, 36)
                 .padding(.vertical, 0)
             }
@@ -302,7 +315,7 @@ struct AddPlantView: View {
                 titleVisibility: .visible
             ) {
                 ForEach(presetLocations, id: \.self) { loc in
-                    Button(loc) { location = loc }
+                    Button(loc) { viewModel.location = loc }
                 }
                 Button("Custom…") {
                     presentCustomLocationAlert()
@@ -317,6 +330,15 @@ struct AddPlantView: View {
                     cameraPermissionGranted = granted
                 }
             }
+        }
+        // Barcode scanned → call viewModel
+        .onChange(of: scannedCode) { _, newValue in
+            guard let code = newValue else { return }
+            Task { await viewModel.onBarcodeScanned(code) }
+        }
+        // Plant added → dismiss
+        .onChange(of: viewModel.didAddPlant) { _, added in
+            if added { dismiss() }
         }
     }
 
@@ -340,7 +362,7 @@ struct AddPlantView: View {
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(.white)
                         .frame(width: 28, height: 28)
-                        .background(potSize == entry.size ? Color.mint : Color(.systemGray3))
+                        .background(viewModel.potSize == entry.size ? Color.mint : Color(.systemGray3))
                         .clipShape(RoundedRectangle(cornerRadius: 8))
 
                     VStack(alignment: .leading, spacing: 2) {
@@ -394,7 +416,7 @@ struct AddPlantView: View {
                 Text("≈ ")
                     .font(.system(size: 15))
                     .foregroundColor(.secondary)
-                Text("\(waterAmount)")
+                Text("\(viewModel.waterAmount)")
                     .font(.system(size: 28, weight: .bold))
                     .foregroundStyle(.blue)
                 Text("ml")
@@ -421,8 +443,8 @@ struct AddPlantView: View {
     /// Dynamically build context tags from current selections
     private var wateringTags: [String] {
         var tags: [String] = []
-        tags.append("\(potSize == "S" ? "Small" : potSize == "M" ? "Medium" : potSize == "L" ? "Large" : "XL") Pot")
-        tags.append(environment)
+        tags.append("\(viewModel.potSize == "S" ? "Small" : viewModel.potSize == "M" ? "Medium" : viewModel.potSize == "L" ? "Large" : "XL") Pot")
+        tags.append(viewModel.environment)
         tags.append("Winter × 0.7")
         return tags
     }
@@ -436,11 +458,11 @@ struct AddPlantView: View {
                                       preferredStyle: .alert)
         alert.addTextField { tf in
             tf.placeholder = "Enter nickname"
-            tf.text = nickname
+            tf.text = viewModel.nickname
         }
         let save = UIAlertAction(title: "Save", style: .default) { _ in
             if let text = alert.textFields?.first?.text {
-                nickname = text
+                viewModel.nickname = text
             }
         }
         let cancel = UIAlertAction(title: "Cancel", style: .cancel, handler: nil)
@@ -461,7 +483,7 @@ struct AddPlantView: View {
         }
         let save = UIAlertAction(title: "Save", style: .default) { _ in
             if let text = alert.textFields?.first?.text, !text.trimmingCharacters(in: .whitespaces).isEmpty {
-                location = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                viewModel.location = text.trimmingCharacters(in: .whitespacesAndNewlines)
             }
         }
         let cancel = UIAlertAction(title: "Cancel", style: .cancel, handler: nil)
@@ -492,6 +514,16 @@ struct AddPlantView: View {
                         }
                     )
             }
+
+            // Scanning indicator overlay
+            if viewModel.isScanning {
+                Color.black.opacity(0.4)
+                    .overlay(
+                        ProgressView("Looking up plant…")
+                            .tint(.white)
+                            .foregroundColor(.white)
+                    )
+            }
         }
     }
 
@@ -499,36 +531,56 @@ struct AddPlantView: View {
 
     private var plantHeader: some View {
         HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color.green.opacity(0.12))
-                .frame(width: 50, height: 50)
-                .overlay(
-                    Image("IMG_2411")
-                        .resizable()
-                        .scaledToFill()
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                )
+            // Plant image
+            Group {
+                if let urlStr = viewModel.plantImageUrl,
+                   let url = URL(string: urlStr) {
+                    AsyncImage(url: url) { image in
+                        image.resizable().scaledToFill()
+                    } placeholder: {
+                        plantImagePlaceholder
+                    }
+                } else {
+                    plantImagePlaceholder
+                }
+            }
+            .frame(width: 50, height: 50)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Snake Plant")
+                Text(viewModel.plantName)
                     .font(.system(size: 16, weight: .semibold))
-                Text("Sansevieria trifasciata")
-                    .font(.system(size: 13))
-                    .foregroundColor(.secondary)
-                    .italic()
+                if !viewModel.scientificName.isEmpty {
+                    Text(viewModel.scientificName)
+                        .font(.system(size: 13))
+                        .foregroundColor(.secondary)
+                        .italic()
+                }
             }
 
             Spacer()
 
-            HStack(spacing: 4) {
-                Text("Detail")
-                    .font(.system(size: 15))
-                    .foregroundColor(.secondary)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(Color(.tertiaryLabel))
+            if viewModel.hasPlant {
+                HStack(spacing: 4) {
+                    Text("Detail")
+                        .font(.system(size: 15))
+                        .foregroundColor(.secondary)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(Color(.tertiaryLabel))
+                }
             }
         }
+    }
+
+    private var plantImagePlaceholder: some View {
+        RoundedRectangle(cornerRadius: 12)
+            .fill(Color.green.opacity(0.12))
+            .overlay(
+                Image(systemName: "leaf.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(.green.opacity(0.4))
+            )
     }
 }
 
