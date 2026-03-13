@@ -17,6 +17,7 @@ final class EditPlantViewModel {
     var nickname = ""
     var location = ""
     var environment = "Indoor"
+    var potSize = "M"
 
     var waterFrequency = 14
     var waterAmount = 200
@@ -62,6 +63,7 @@ final class EditPlantViewModel {
         commonName = plant.plantName ?? ""
         nickname = plant.nickname ?? ""
         location = plant.location ?? ""
+        potSize = "M"
 
         waterFrequency = plant.wateringIntervalDays ?? 14
         waterAmount = plant.wateringAmountMl ?? 200

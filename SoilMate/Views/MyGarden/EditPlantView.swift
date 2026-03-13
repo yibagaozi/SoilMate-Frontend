@@ -12,6 +12,8 @@ struct EditPlantView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel: EditPlantViewModel
+    @State private var showSaveSuccess = false
+    @State private var showPotSizeInfo = false
 
     init(userPlantId: Int64) {
         self.userPlantId = userPlantId
@@ -25,6 +27,7 @@ struct EditPlantView: View {
     private let lightOptions = ["Full Sun", "Partial Sun", "Low Light", "Flexible"]
     private let locationOptions = ["Living Room", "Bedroom", "Balcony", "Office", "Kitchen"]
     private let environmentOptions = ["Indoor", "Outdoor"]
+    private let potSizeOptions = ["S", "M", "L", "XL"]
 
     var body: some View {
         List {
@@ -43,15 +46,106 @@ struct EditPlantView: View {
                 Text("Common Name")
             }
 
-            // ── Nickname (editable, native SwiftUI) ──
+            // ── Nickname (editable) ──
             Section {
                 UIKitTextField(text: $viewModel.nickname, placeholder: "Nickname")
             } header: {
                 Text("Nickname")
             }
 
-            // ── Care Settings ──
+            // ── Plant Settings ──
             Section {
+                // Pot Size — inline segment selector
+                HStack {
+                    HStack(spacing: 4) {
+                        Text("Pot Size")
+                        Button {
+                            showPotSizeInfo = true
+                        } label: {
+                            Image(systemName: "info.circle")
+                                .font(.system(size: 14))
+                                .foregroundColor(Color(.tertiaryLabel))
+                        }
+                        .buttonStyle(.plain)
+                        .popover(isPresented: $showPotSizeInfo, arrowEdge: .bottom) {
+                            potSizeInfoPopover
+                        }
+                    }
+                    Spacer()
+                    HStack(spacing: 0) {
+                        ForEach(potSizeOptions, id: \.self) { size in
+                            Button {
+                                viewModel.potSize = size
+                            } label: {
+                                Text(size)
+                                    .font(.system(size: 14, weight: viewModel.potSize == size ? .semibold : .regular))
+                                    .foregroundColor(viewModel.potSize == size ? .white : .secondary)
+                                    .frame(width: 36, height: 30)
+                                    .background(
+                                        viewModel.potSize == size
+                                            ? Color.mint
+                                            : Color.clear
+                                    )
+                            }
+                            .buttonStyle(.plain)
+
+                            if size != potSizeOptions.last {
+                                Divider().frame(height: 20)
+                            }
+                        }
+                    }
+                    .background(Color(.tertiarySystemFill))
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                }
+
+                // Environment
+                HStack {
+                    Text("Environment")
+                    Spacer()
+                    Menu {
+                        ForEach(environmentOptions, id: \.self) { option in
+                            Button(option) { viewModel.environment = option }
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(viewModel.environment)
+                                .foregroundColor(.secondary)
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundColor(Color(.tertiaryLabel))
+                        }
+                    }
+                }
+
+                // Location
+                HStack {
+                    Text("Location")
+                    Spacer()
+                    Menu {
+                        ForEach(locationOptions, id: \.self) { loc in
+                            Button(loc) { viewModel.location = loc }
+                        }
+                        Button("Custom…") {
+                            presentCustomLocationAlert()
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(viewModel.location.isEmpty ? "Choose" : viewModel.location)
+                                .foregroundColor(.secondary)
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundColor(Color(.tertiaryLabel))
+                        }
+                    }
+                }
+
+                // Notification
+                Toggle("Notification", isOn: $viewModel.enableNotification)
+                    .tint(.mint)
+            }
+
+            // ── Care Settings ──
+            Section("Care Settings") {
                 // Water Frequency
                 HStack {
                     Text("Water Frequency")
@@ -168,7 +262,12 @@ struct EditPlantView: View {
             }
             .listSectionSpacing(20)
 
-            // ── Photo / Location / Notification ──
+            // ── Watering Guide ──
+            Section("Watering") {
+                wateringBlock
+            }
+
+            // ── Photo ──
             Section {
                 // Change Photo
                 HStack {
@@ -182,51 +281,6 @@ struct EditPlantView: View {
                             .foregroundColor(Color(.tertiaryLabel))
                     }
                 }
-
-                // Location
-                HStack {
-                    Text("Location")
-                    Spacer()
-                    Menu {
-                        ForEach(locationOptions, id: \.self) { loc in
-                            Button(loc) { viewModel.location = loc }
-                        }
-                        Button("Custom…") {
-                            presentCustomLocationAlert()
-                        }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text(viewModel.location.isEmpty ? "Choose" : viewModel.location)
-                                .foregroundColor(.secondary)
-                            Image(systemName: "chevron.up.chevron.down")
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundColor(Color(.tertiaryLabel))
-                        }
-                    }
-                }
-
-                // Environment
-                HStack {
-                    Text("Environment")
-                    Spacer()
-                    Menu {
-                        ForEach(environmentOptions, id: \.self) { loc in
-                            Button(loc) { viewModel.environment = loc }
-                        }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text(viewModel.environment)
-                                .foregroundColor(.secondary)
-                            Image(systemName: "chevron.up.chevron.down")
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundColor(Color(.tertiaryLabel))
-                        }
-                    }
-                }
-
-                // Notification
-                Toggle("Notification", isOn: $viewModel.enableNotification)
-                    .tint(.mint)
             }
 
             // ── Error Message ──
@@ -285,10 +339,124 @@ struct EditPlantView: View {
         .task {
             await viewModel.load()
         }
-        // Dismiss after save
+        // Show success alert after save
         .onChange(of: viewModel.didSave) { _, saved in
-            if saved { dismiss() }
+            if saved { showSaveSuccess = true }
         }
+        // Success alert → dismiss on OK
+        .alert("Saved", isPresented: $showSaveSuccess) {
+            Button("OK") {
+                dismiss()
+            }
+        } message: {
+            Text("Plant information updated successfully.")
+        }
+    }
+
+    // MARK: - Pot Size Info Popover
+
+    private var potSizeInfoPopover: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Pot Size Guide")
+                .font(.system(size: 15, weight: .semibold))
+                .padding(.bottom, 2)
+
+            Text("Sizes refer to the pot's opening diameter.")
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+                .padding(.bottom, 12)
+
+            ForEach(potSizeGuide, id: \.size) { entry in
+                HStack(alignment: .top, spacing: 12) {
+                    Text(entry.size)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 28, height: 28)
+                        .background(viewModel.potSize == entry.size ? Color.mint : Color(.systemGray3))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(entry.label)
+                            .font(.system(size: 14, weight: .medium))
+                        Text(entry.description)
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.bottom, entry.size == "XL" ? 0 : 10)
+            }
+        }
+        .padding(18)
+        .frame(width: 280)
+        .presentationCompactAdaptation(.popover)
+    }
+
+    private struct PotSizeEntry {
+        let size: String
+        let label: String
+        let description: String
+    }
+
+    private let potSizeGuide: [PotSizeEntry] = [
+        PotSizeEntry(size: "S",  label: "Small  (< 15 cm)",      description: "Fits in one hand. Typically 10–14 cm tall. Ideal for seedlings, succulents, and small herbs."),
+        PotSizeEntry(size: "M",  label: "Medium (15–25 cm)",     description: "Standard nursery pot size. Typically 15–22 cm tall. Suits most common houseplants."),
+        PotSizeEntry(size: "L",  label: "Large  (25–40 cm)",     description: "Wide, bucket-like opening. Typically 25–35 cm tall. Good for tropical foliage and bushy ferns."),
+        PotSizeEntry(size: "XL", label: "Extra Large (> 40 cm)", description: "Floor-standing planter. Often 40 cm or taller. Built for large trees and statement plants."),
+    ]
+
+    // MARK: - Watering Block
+
+    private var wateringBlock: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("How to Water")
+                    .font(.system(size: 16, weight: .bold))
+                Text("Allow soil to dry completely between waterings. Water slowly until it drains from the bottom.")
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text("Suggested amount")
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+                Spacer()
+                Text("≈ ")
+                    .font(.system(size: 15))
+                    .foregroundColor(.secondary)
+                Text("\(viewModel.waterAmount)")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundStyle(.blue)
+                Text("ml")
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+            }
+
+            // Context tags
+            HStack(spacing: 6) {
+                ForEach(wateringTags, id: \.self) { tag in
+                    Text(tag)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Color(.secondarySystemFill))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    /// Dynamically build context tags from current selections
+    private var wateringTags: [String] {
+        var tags: [String] = []
+        tags.append("\(viewModel.potSize == "S" ? "Small" : viewModel.potSize == "M" ? "Medium" : viewModel.potSize == "L" ? "Large" : "XL") Pot")
+        tags.append(viewModel.environment)
+        tags.append("Winter × 0.7")
+        return tags
     }
 
     // MARK: - Custom Location Alert (UIKit)
@@ -314,7 +482,6 @@ struct EditPlantView: View {
 
 // MARK: - UIKit TextField Wrapper
 
-/// Wraps UITextField for direct text editing with clear button
 private struct UIKitTextField: UIViewRepresentable {
     @Binding var text: String
     var placeholder: String
