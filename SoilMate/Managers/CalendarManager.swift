@@ -36,10 +36,10 @@ final class CalendarManager {
         isAuthorized = (status == .fullAccess || status == .writeOnly)
     }
 
-    /// Request write-only access to calendar (iOS 17+)
+    /// Request full access to calendar (iOS 17+)
     func requestAccess() async -> Bool {
         do {
-            let granted = try await store.requestWriteOnlyAccessToEvents()
+            let granted = try await store.requestFullAccessToEvents()
             await MainActor.run { isAuthorized = granted }
             return granted
         } catch {
