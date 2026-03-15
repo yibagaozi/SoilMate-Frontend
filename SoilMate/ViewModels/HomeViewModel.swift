@@ -56,7 +56,7 @@ final class HomeViewModel {
     /// Complete a task (e.g. tap the checkmark on today's card)
     func completeTask(_ task: CareTaskItem) async {
         do {
-            _ = try await CareTaskService.completeTask(id: task.id)
+            let detail = try await CareTaskService.completeTask(id: task.id)
 
             // Remove from today list and pick next one
             todayTasks.removeAll { $0.id == task.id }
@@ -64,6 +64,18 @@ final class HomeViewModel {
 
             // Also remove from upcoming if it was there
             upcomingTasks.removeAll { $0.id == task.id }
+
+            // Update calendar: remove old event, add next one
+            let cm = CalendarManager.shared
+            cm.removeCareEvent(taskId: task.id)
+            if let nextId = detail.nextTaskId, let nextDate = detail.nextTaskDate {
+                cm.addCareEvent(
+                    taskId: nextId,
+                    plantName: task.plantNickname ?? "Plant",
+                    careType: task.careType,
+                    scheduledDate: nextDate
+                )
+            }
         } catch let error as ApiError {
             errorMessage = error.errorDescription
         } catch {

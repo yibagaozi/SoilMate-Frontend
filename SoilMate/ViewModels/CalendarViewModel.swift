@@ -86,12 +86,24 @@ final class CalendarViewModel {
 
     // MARK: - Complete Task
 
-    /// Mark a task as done
     func completeTask(_ task: CareTaskItem) async -> TaskDetail? {
         do {
             let detail = try await CareTaskService.completeTask(id: task.id)
             allTasks.removeAll { $0.id == task.id }
-            // Reload logs to show the new record
+
+            // Update calendar: remove old event, add next one
+            let cm = CalendarManager.shared
+            cm.removeCareEvent(taskId: task.id)
+            if let nextId = detail.nextTaskId, let nextDate = detail.nextTaskDate {
+                cm.addCareEvent(
+                    taskId: nextId,
+                    plantName: task.plantNickname ?? "Plant",
+                    careType: task.careType,
+                    scheduledDate: nextDate
+                )
+            }
+
+            // Reload logs
             let dateString = DateHelper.toDateString(selectedDate)
             allLogs = (try? await CareLogService.getLogsByDate(date: dateString)) ?? allLogs
             return detail
@@ -106,12 +118,24 @@ final class CalendarViewModel {
 
     // MARK: - Skip Task
 
-    /// Skip a task with optional reason
     func skipTask(_ task: CareTaskItem, reason: String? = nil) async -> TaskDetail? {
         let request = reason.map { SkipTaskRequest(reason: $0) }
         do {
             let detail = try await CareTaskService.skipTask(id: task.id, request: request)
             allTasks.removeAll { $0.id == task.id }
+
+            // Update calendar: remove old event, add next one
+            let cm = CalendarManager.shared
+            cm.removeCareEvent(taskId: task.id)
+            if let nextId = detail.nextTaskId, let nextDate = detail.nextTaskDate {
+                cm.addCareEvent(
+                    taskId: nextId,
+                    plantName: task.plantNickname ?? "Plant",
+                    careType: task.careType,
+                    scheduledDate: nextDate
+                )
+            }
+
             return detail
         } catch let error as ApiError {
             errorMessage = error.errorDescription

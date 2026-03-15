@@ -11,6 +11,8 @@ struct SettingsView: View {
 
     @Environment(AuthManager.self) private var authManager
     @State private var viewModel = SettingsViewModel()
+    @State private var calendarManager = CalendarManager.shared
+    @State private var showCalendarDenied = false
 
     private let headerHeight: CGFloat = 48
     private let presetSound = ["Default", "Note", "Glass", "Bell", "Signal", "Pulse", "Tri-tone"]
@@ -108,8 +110,34 @@ struct SettingsView: View {
 
                     // MARK: - Calendar
                     Section("Calendar") {
-                        Toggle("Sync Calendar", isOn: $viewModel.syncCalendar)
+                        Toggle("Sync to Calendar", isOn: $viewModel.syncCalendar)
                             .tint(.mint)
+                            .onChange(of: viewModel.syncCalendar) { _, enabled in
+                                Task { await handleCalendarToggle(enabled) }
+                            }
+
+                        if viewModel.syncCalendar && calendarManager.isAuthorized {
+                            HStack {
+                                Text("Calendar")
+                                Spacer()
+                                HStack(spacing: 6) {
+                                    Circle()
+                                        .fill(Color.mint)
+                                        .frame(width: 10, height: 10)
+                                    Text("SoilMate")
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+
+                            if calendarManager.isSyncing {
+                                HStack {
+                                    Text("Syncing tasks...")
+                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                    ProgressView()
+                                }
+                            }
+                        }
                     }
 
                     // MARK: - About
@@ -120,12 +148,16 @@ struct SettingsView: View {
                             Text("V1.0.0").foregroundColor(.secondary)
                         }
 
-                        HStack {
+                        NavigationLink {
+                            PrivacyPolicyView()
+                        } label: {
                             Text("Privacy")
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(Color(.tertiaryLabel))
+                        }
+
+                        NavigationLink {
+                            TermsOfServiceView()
+                        } label: {
+                            Text("Terms of Service")
                         }
 
                         HStack {
@@ -144,9 +176,52 @@ struct SettingsView: View {
             .navigationBarHidden(true)
             .task {
                 await viewModel.load()
+                calendarManager.checkAuthorizationStatus()
+            }
+            .alert("Calendar Access Denied", isPresented: $showCalendarDenied) {
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+                Button("Cancel", role: .cancel) {
+                    viewModel.syncCalendar = false
+                }
+            } message: {
+                Text("SoilMate needs calendar access to sync care reminders. Please enable it in Settings.")
             }
         }
         .tint(nil)
+    }
+
+    // MARK: - Calendar Toggle Handler
+
+    private func handleCalendarToggle(_ enabled: Bool) async {
+        if enabled {
+            // Request permission
+            let granted = await calendarManager.requestAccess()
+
+            if granted {
+                // Fetch all pending tasks and sync
+                do {
+                    let todayTasks = try await CareTaskService.getTodayTasks()
+                    let upcomingTasks = try await CareTaskService.getUpcomingTasks()
+                    let allTasks = todayTasks + upcomingTasks
+
+                    await calendarManager.syncAllTasks(allTasks, reminderTime: viewModel.reminderTime)
+                } catch {
+                    print("❌ Failed to fetch tasks for calendar sync: \(error)")
+                }
+            } else {
+                // Permission denied, show alert and revert toggle
+                await MainActor.run {
+                    showCalendarDenied = true
+                }
+            }
+        } else {
+            // Remove all SoilMate events
+            calendarManager.removeAllEvents()
+        }
     }
 
     // MARK: - Header
@@ -175,6 +250,32 @@ struct SettingsView: View {
                     .foregroundColor(.gray)
                     .font(.system(size: 24))
             )
+    }
+}
+
+// MARK: - Privacy Policy View (placeholder)
+
+private struct PrivacyPolicyView: View {
+    var body: some View {
+        ScrollView {
+            Text("Privacy Policy content goes here.\nLoad from PRIVACY_POLICY.md")
+                .padding()
+        }
+        .navigationTitle("Privacy Policy")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+// MARK: - Terms of Service View (placeholder)
+
+private struct TermsOfServiceView: View {
+    var body: some View {
+        ScrollView {
+            Text("Terms of Service content goes here.\nLoad from TERMS_OF_SERVICE.md")
+                .padding()
+        }
+        .navigationTitle("Terms of Service")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
