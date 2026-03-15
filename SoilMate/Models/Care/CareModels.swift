@@ -21,9 +21,11 @@ struct CareTaskItem: Decodable, Identifiable {
     let userPlantId: Int64
     let plantNickname: String?
     let plantImageUrl: String?
+    let plantLocation: String?
 
     /// true if this is a watering task
-    var isWatering: Bool { careType == "WATERING" }
+    var isWatering: Bool { careType == "WATER" }
+    var careTypeDisplay: String { isWatering ? "Watering" : "Feeding" }
 }
 
 /// Full detail after completing or skipping a task. Matches TaskDetailResponse.
@@ -54,8 +56,11 @@ struct CareLogItem: Decodable, Identifiable {
     let userPlantId: Int64?
     let plantNickname: String?
     let plantImageUrl: String?
+    let plantLocation: String?
+    let photoUrl: String?
 
-    var isWatering: Bool { careType == "WATERING" }
+    var isWatering: Bool { careType == "WATER" }
+    var careTypeDisplay: String { isWatering ? "Watering" : "Feeding" }
 }
 
 // MARK: - Requests

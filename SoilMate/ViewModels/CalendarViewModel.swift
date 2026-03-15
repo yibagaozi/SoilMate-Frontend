@@ -15,8 +15,7 @@ final class CalendarViewModel {
     /// Currently selected date
     var selectedDate = Date() {
         didSet {
-            // Reload tasks when user picks a new date
-            Task { await loadTasks() }
+            Task { await loadAll() }
         }
     }
 
@@ -26,7 +25,10 @@ final class CalendarViewModel {
     /// All tasks for the selected date (before filtering)
     private var allTasks: [CareTaskItem] = []
 
-    /// Tasks after applying the filter
+    /// All care logs for the selected date
+    private var allLogs: [CareLogItem] = []
+
+    /// Filtered tasks
     var wateringTasks: [CareTaskItem] {
         allTasks.filter { $0.isWatering }
     }
@@ -35,27 +37,51 @@ final class CalendarViewModel {
         allTasks.filter { !$0.isWatering }
     }
 
+    /// Filtered logs
+    var wateringLogs: [CareLogItem] {
+        allLogs.filter { $0.isWatering }
+    }
+
+    var feedingLogs: [CareLogItem] {
+        allLogs.filter { !$0.isWatering }
+    }
+
+    /// Check if there are any logs
+    var hasLogs: Bool { !allLogs.isEmpty }
+
+    /// Check if there are any tasks
+    var hasTasks: Bool { !allTasks.isEmpty }
+
     var isLoading = false
     var errorMessage: String?
 
-    // MARK: - Load Tasks
+    // MARK: - Load All
 
-    /// Fetch tasks for the selected date
-    func loadTasks() async {
+    /// Load both tasks and logs for the selected date
+    func loadAll() async {
         isLoading = true
         errorMessage = nil
 
         let dateString = DateHelper.toDateString(selectedDate)
 
         do {
-            allTasks = try await CareTaskService.getTasksByDate(dateString)
+            async let tasksResult = CareTaskService.getTasksByDate(dateString)
+            async let logsResult = CareLogService.getLogsByDate(date: dateString)
+
+            allTasks = try await tasksResult
+            allLogs = try await logsResult
         } catch let error as ApiError {
             errorMessage = error.errorDescription
         } catch {
-            errorMessage = "Failed to load tasks"
+            errorMessage = "Failed to load data"
         }
 
         isLoading = false
+    }
+
+    /// Legacy name kept for compatibility
+    func loadTasks() async {
+        await loadAll()
     }
 
     // MARK: - Complete Task
@@ -64,8 +90,10 @@ final class CalendarViewModel {
     func completeTask(_ task: CareTaskItem) async -> TaskDetail? {
         do {
             let detail = try await CareTaskService.completeTask(id: task.id)
-            // Remove from list
             allTasks.removeAll { $0.id == task.id }
+            // Reload logs to show the new record
+            let dateString = DateHelper.toDateString(selectedDate)
+            allLogs = (try? await CareLogService.getLogsByDate(date: dateString)) ?? allLogs
             return detail
         } catch let error as ApiError {
             errorMessage = error.errorDescription
@@ -94,7 +122,7 @@ final class CalendarViewModel {
         }
     }
 
-    // MARK: - Helpers
+    // MARK: - Display Helpers
 
     /// "200ml" or "General fertilizer"
     func taskDetail(_ task: CareTaskItem) -> String {
@@ -103,5 +131,21 @@ final class CalendarViewModel {
         } else {
             return task.feedingType ?? "Fertilizer"
         }
+    }
+
+    /// "200 ml" or "General fertilizer"
+    func logDetail(_ log: CareLogItem) -> String {
+        if log.isWatering {
+            return log.waterAmountMl.map { "\($0) ml" } ?? "Watered"
+        } else {
+            return log.feedingType ?? "Fed"
+        }
+    }
+
+    /// Display date for a log: "Apr 20, 2025"
+    func logDate(_ log: CareLogItem) -> String {
+        guard let dateStr = log.performedAt else { return "—" }
+        guard let date = DateHelper.parseDateTime(dateStr) else { return dateStr }
+        return DateHelper.displayDate(date)
     }
 }
