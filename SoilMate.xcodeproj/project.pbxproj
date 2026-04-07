@@ -87,6 +87,11 @@
 			path = "SoilMateWatch Watch AppUITests";
 			sourceTree = "<group>";
 		};
+		3E7C04C42F84F6BA002B9E98 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
+			sourceTree = "<group>";
+		};
 		3EC33D312F21099100D1E23B /* SoilMate */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = SoilMate;
@@ -153,6 +158,7 @@
 		3EC33D262F21099100D1E23B = {
 			isa = PBXGroup;
 			children = (
+				3E7C04C42F84F6BA002B9E98 /* Shared */,
 				3EC33D312F21099100D1E23B /* SoilMate */,
 				3EC33D3F2F21099300D1E23B /* SoilMateTests */,
 				3EC33D492F21099300D1E23B /* SoilMateUITests */,
@@ -193,6 +199,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				3E7C03EE2F82683C002B9E98 /* SoilMateWatch Watch App */,
+				3E7C04C42F84F6BA002B9E98 /* Shared */,
 			);
 			name = "SoilMateWatch Watch App";
 			packageProductDependencies = (
@@ -262,6 +269,7 @@
 				3E7C040C2F82683E002B9E98 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
+				3E7C04C42F84F6BA002B9E98 /* Shared */,
 				3EC33D312F21099100D1E23B /* SoilMate */,
 			);
 			name = SoilMate;

@@ -149,15 +149,15 @@ struct SettingsView: View {
                         }
 
                         NavigationLink {
-                            PrivacyPolicyView()
+                            MarkdownDocumentView(fileName: "PRIVACY_POLICY", title: "Privacy Policy")
                         } label: {
-                            Text("Privacy")
+                            Text("Privacy Policy")
                         }
 
                         NavigationLink {
-                            TermsOfServiceView()
+                            MarkdownDocumentView(fileName: "TERMS_OF_USE", title: "Terms of Use")
                         } label: {
-                            Text("Terms of Service")
+                            Text("Terms of Use")
                         }
 
                         HStack {
@@ -210,7 +210,7 @@ struct SettingsView: View {
 
                     await calendarManager.syncAllTasks(allTasks, reminderTime: viewModel.reminderTime)
                 } catch {
-                    print("❌ Failed to fetch tasks for calendar sync: \(error)")
+                    print("Failed to fetch tasks for calendar sync: \(error)")
                 }
             } else {
                 // Permission denied, show alert and revert toggle
@@ -253,31 +253,6 @@ struct SettingsView: View {
     }
 }
 
-// MARK: - Privacy Policy View (placeholder)
-
-private struct PrivacyPolicyView: View {
-    var body: some View {
-        ScrollView {
-            Text("Privacy Policy content goes here.\nLoad from PRIVACY_POLICY.md")
-                .padding()
-        }
-        .navigationTitle("Privacy Policy")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
-// MARK: - Terms of Service View (placeholder)
-
-private struct TermsOfServiceView: View {
-    var body: some View {
-        ScrollView {
-            Text("Terms of Service content goes here.\nLoad from TERMS_OF_SERVICE.md")
-                .padding()
-        }
-        .navigationTitle("Terms of Service")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-}
 
 #Preview {
     SettingsView()
