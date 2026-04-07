@@ -87,23 +87,21 @@ final class CalendarViewModel {
     // MARK: - Complete Task
 
     func completeTask(_ task: CareTaskItem) async -> TaskDetail? {
+        let request: CompleteTaskRequest? = task.isWatering
+            ? CompleteTaskRequest(
+                waterAmountMl: task.displayedWaterAmountMl,
+                feedingType: nil,
+                notes: nil
+            )
+            : nil
+ 
         do {
-            let detail = try await CareTaskService.completeTask(id: task.id)
+            let detail = try await CareTaskService.completeTask(id: task.id, request: request)
             allTasks.removeAll { $0.id == task.id }
-
-            // Update calendar: remove old event, add next one
-            let cm = CalendarManager.shared
-            cm.removeCareEvent(taskId: task.id)
-            if let nextId = detail.nextTaskId, let nextDate = detail.nextTaskDate {
-                cm.addCareEvent(
-                    taskId: nextId,
-                    plantName: task.plantNickname ?? "Plant",
-                    careType: task.careType,
-                    scheduledDate: nextDate
-                )
-            }
-
-            // Reload logs
+            updateCalendarEvent(task: task, detail: detail)
+            NotificationManager.shared.removeNotification(forTaskId: task.id)
+ 
+            // Reload logs so the new entry shows up
             let dateString = DateHelper.toDateString(selectedDate)
             allLogs = (try? await CareLogService.getLogsByDate(date: dateString)) ?? allLogs
             return detail
@@ -115,27 +113,16 @@ final class CalendarViewModel {
             return nil
         }
     }
-
-    // MARK: - Skip Task
-
+ 
+    // MARK: - Skip
+ 
     func skipTask(_ task: CareTaskItem, reason: String? = nil) async -> TaskDetail? {
         let request = reason.map { SkipTaskRequest(reason: $0) }
         do {
             let detail = try await CareTaskService.skipTask(id: task.id, request: request)
             allTasks.removeAll { $0.id == task.id }
-
-            // Update calendar: remove old event, add next one
-            let cm = CalendarManager.shared
-            cm.removeCareEvent(taskId: task.id)
-            if let nextId = detail.nextTaskId, let nextDate = detail.nextTaskDate {
-                cm.addCareEvent(
-                    taskId: nextId,
-                    plantName: task.plantNickname ?? "Plant",
-                    careType: task.careType,
-                    scheduledDate: nextDate
-                )
-            }
-
+            updateCalendarEvent(task: task, detail: detail)
+            NotificationManager.shared.removeNotification(forTaskId: task.id)
             return detail
         } catch let error as ApiError {
             errorMessage = error.errorDescription
@@ -145,16 +132,25 @@ final class CalendarViewModel {
             return nil
         }
     }
+    
+    private func updateCalendarEvent(task: CareTaskItem, detail: TaskDetail) {
+        let cm = CalendarManager.shared
+        cm.removeCareEvent(taskId: task.id)
+        if let nextId = detail.nextTaskId, let nextDate = detail.nextTaskDate {
+            cm.addCareEvent(
+                taskId: nextId,
+                plantName: task.plantNickname ?? "Plant",
+                careType: task.careType,
+                scheduledDate: nextDate
+            )
+        }
+    }
 
     // MARK: - Display Helpers
 
-    /// "200ml" or "General fertilizer"
+    /// Task shows the COEFFICIENT-ADJUSTED amount (what should be poured today).
     func taskDetail(_ task: CareTaskItem) -> String {
-        if task.isWatering {
-            return task.waterAmountMl.map { "\($0)ml" } ?? "Water"
-        } else {
-            return task.feedingType ?? "Fertilizer"
-        }
+        task.displayDetail
     }
 
     /// "200 ml" or "General fertilizer"

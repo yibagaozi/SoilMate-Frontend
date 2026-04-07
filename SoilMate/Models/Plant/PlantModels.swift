@@ -48,6 +48,9 @@ struct UserPlantDetail: Decodable, Identifiable {
     let wateringAmountMl: Int?
     let feedingIntervalDays: Int?
     let feedingType: String?
+    
+    let potSize: String?
+    let environment: String?
 
     // Next care dates (computed by backend)
     let nextWateringDate: String?
@@ -55,6 +58,22 @@ struct UserPlantDetail: Decodable, Identifiable {
 
     // Recent care history
     let recentCareLogs: [CareLogItem]?
+}
+
+extension UserPlantDetail {
+ 
+    var potSizeValue: PotSize { PotSize.from(potSize) }
+    var environmentValue: GrowingEnvironment { GrowingEnvironment.from(environment) }
+ 
+    /// Calculated watering amount for today.
+    var calculatedWaterAmountMl: Int? {
+        guard let base = wateringAmountMl else { return nil }
+        return WateringCalculator.calculate(
+            baseAmountMl: base,
+            potSize: potSizeValue,
+            environment: environmentValue
+        )
+    }
 }
 
 // MARK: - Requests
@@ -70,6 +89,8 @@ struct AddUserPlantRequest: Encodable {
     var wateringAmountMl: Int?
     var feedingIntervalDays: Int?
     var feedingType: String?
+    var potSize: String?
+    var environment: String?
 }
 
 /// Update an existing plant in my garden
@@ -81,4 +102,6 @@ struct UpdateUserPlantRequest: Encodable {
     var wateringAmountMl: Int?
     var feedingIntervalDays: Int?
     var feedingType: String?
+    var potSize: String?
+    var environment: String?
 }

@@ -13,6 +13,7 @@ struct SettingsView: View {
     @State private var viewModel = SettingsViewModel()
     @State private var calendarManager = CalendarManager.shared
     @State private var showCalendarDenied = false
+    @State private var showRegionPicker = false
 
     private let headerHeight: CGFloat = 48
     private let presetSound = ["Default", "Note", "Glass", "Bell", "Signal", "Pulse", "Tri-tone"]
@@ -71,6 +72,28 @@ struct SettingsView: View {
                             }
                         }
                         .listRowSeparator(.hidden, edges: .bottom)
+                    }
+                    
+                    Section {
+                        Button {
+                            showRegionPicker = true
+                        } label: {
+                            HStack {
+                                Text("Region")
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                Text(viewModel.region.displayName)
+                                    .foregroundColor(.secondary)
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(Color(.tertiaryLabel))
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    } header: {
+                        Text("Region")
+                    } footer: {
+                        Text("Used to adjust watering amounts based on local seasonal patterns.")
                     }
 
                     // MARK: - Notifications
@@ -178,6 +201,16 @@ struct SettingsView: View {
                 await viewModel.load()
                 calendarManager.checkAuthorizationStatus()
             }
+            .sheet(isPresented: $showRegionPicker) {
+                RegionPickerView(
+                    selectedRegion: viewModel.region,
+                    onSelect: { newRegion in
+                        viewModel.setRegion(newRegion)
+                        showRegionPicker = false
+                    }
+                )
+                .presentationDetents([.medium, .large])
+            }
             .alert("Calendar Access Denied", isPresented: $showCalendarDenied) {
                 Button("Open Settings") {
                     if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -253,6 +286,74 @@ struct SettingsView: View {
     }
 }
 
+// MARK: - Region Picker
+ 
+private struct RegionPickerView: View {
+    let selectedRegion: Region
+    let onSelect: (Region) -> Void
+ 
+    @Environment(\.dismiss) private var dismiss
+ 
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    Text("Choose the region closest to you. Watering amounts are adjusted based on the local seasonal climate pattern.")
+                        .font(.system(size: 13))
+                        .foregroundColor(.secondary)
+                        .listRowBackground(Color.clear)
+                }
+ 
+                Section("Regions") {
+                    ForEach(Region.allCases) { region in
+                        Button {
+                            onSelect(region)
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(region.displayName)
+                                        .font(.system(size: 16))
+                                        .foregroundColor(.primary)
+                                    Text(climateDescription(region))
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.secondary)
+                                }
+                                Spacer()
+                                if region == selectedRegion {
+                                    Image(systemName: "checkmark")
+                                        .foregroundColor(.mint)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .navigationTitle("Region")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+ 
+    private func climateDescription(_ region: Region) -> String {
+        switch region {
+        case .tokyo: return "Humid subtropical, four seasons"
+        case .beijing: return "Continental, cold dry winter"
+        case .shanghai: return "Humid subtropical"
+        case .hongKong: return "Subtropical, mild winter"
+        case .singapore: return "Tropical, minimal variation"
+        case .london: return "Temperate oceanic"
+        case .newYork: return "Humid continental"
+        case .losAngeles: return "Mediterranean"
+        case .sydney: return "Southern hemisphere, subtropical"
+        case .dubai: return "Hot desert"
+        }
+    }
+}
 
 #Preview {
     SettingsView()

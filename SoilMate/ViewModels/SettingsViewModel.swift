@@ -24,6 +24,9 @@ final class SettingsViewModel {
 
     /// Sync with iOS calendar (local only, not sent to backend)
     var syncCalendar = true
+    
+    // Region for watering calculation
+    var region: Region = WateringCalculator.currentRegion
 
     /// Notification sound (local only)
     var sound = "Default"
@@ -72,7 +75,8 @@ final class SettingsViewModel {
             displayName: displayName,
             timezone: timezone,
             notificationEnabled: notificationEnabled,
-            reminderTime: timeString
+            reminderTime: timeString,
+            region: region.rawValue
         )
 
         do {
@@ -86,6 +90,34 @@ final class SettingsViewModel {
         }
 
         isSaving = false
+    }
+    
+    // MARK: - Region
+     
+    /// Called when the user picks a region from the list.
+    func setRegion(_ newRegion: Region) {
+        region = newRegion
+        WateringCalculator.currentRegion = newRegion
+        Task {
+            await saveSettings()
+            // After region change, refresh watch tasks so calculated
+            // amounts match the new seasonal factors.
+            await refreshWatchTasks()
+        }
+    }
+     
+    /// Recalculate and re-push tasks to the watch after a region change.
+    private func refreshWatchTasks() async {
+        do {
+            async let today = CareTaskService.getTodayTasks()
+            async let upcoming = CareTaskService.getUpcomingTasks()
+            WatchConnectivityManager.shared.sendTasks(
+                today: try await today,
+                upcoming: try await upcoming
+            )
+        } catch {
+            print("[Settings] Failed to refresh watch tasks: \(error)")
+        }
     }
 
     // MARK: - Fill from Profile
@@ -105,5 +137,14 @@ final class SettingsViewModel {
                 reminderTime = date
             }
         }
+        
+        // Region: prefer server value, fall back to timezone auto-detect
+        if let regionString = profile.region,
+            let serverRegion = Region(rawValue: regionString) {
+            region = serverRegion
+        } else {
+            region = WateringCalculator.autoDetectRegion()
+        }
+        WateringCalculator.currentRegion = region
     }
 }

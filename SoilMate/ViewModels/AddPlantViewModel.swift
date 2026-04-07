@@ -26,8 +26,8 @@ final class AddPlantViewModel {
     var nickname = ""
     var location = ""
     var notes = ""
-    var environment = "Indoor"
-    var potSize = "M"
+    var environment: GrowingEnvironment = .indoor
+    var potSize: PotSize = .medium
 
     var waterFrequency = 14
     var waterAmount = 200
@@ -48,6 +48,19 @@ final class AddPlantViewModel {
 
     /// The ID of the newly added user plant
     var newPlantId: Int64?
+    
+    // Live-calculated amount
+    var calculatedAmountMl: Int {
+        WateringCalculator.calculate(
+            baseAmountMl: waterAmount,
+            potSize: potSize,
+            environment: environment
+        )
+    }
+     
+    var calculationTags: [String] {
+        WateringCalculator.tags(potSize: potSize, environment: environment)
+    }
 
     // MARK: - Barcode Validation
 
@@ -126,7 +139,9 @@ final class AddPlantViewModel {
             wateringIntervalDays: waterFrequency,
             wateringAmountMl: waterAmount,
             feedingIntervalDays: feedingFrequency,
-            feedingType: feedingType
+            feedingType: feedingType,
+            potSize: potSize.rawValue,
+            environment: environment.rawValue
         )
 
         do {
@@ -151,8 +166,8 @@ final class AddPlantViewModel {
         nickname = ""
         location = ""
         notes = ""
-        environment = "Indoor"
-        potSize = "M"
+        environment = .indoor
+        potSize = .medium
         waterFrequency = 14
         waterAmount = 200
         feedingFrequency = 60

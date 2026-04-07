@@ -22,10 +22,36 @@ struct CareTaskItem: Decodable, Identifiable {
     let plantNickname: String?
     let plantImageUrl: String?
     let plantLocation: String?
+    
+    let potSize: String?
+    let environment: String?
 
     /// true if this is a watering task
     var isWatering: Bool { careType == "WATER" }
     var careTypeDisplay: String { isWatering ? "Watering" : "Feeding" }
+}
+
+extension CareTaskItem {
+ 
+    /// Amount to display, with pot / environment / season coefficients applied.
+    /// Returns nil for feeding tasks or tasks without a base amount.
+    var displayedWaterAmountMl: Int? {
+        guard isWatering, let base = waterAmountMl else { return nil }
+        return WateringCalculator.calculate(
+            baseAmountMl: base,
+            potSizeString: potSize,
+            environmentString: environment
+        )
+    }
+ 
+    /// Detail text for UI rows. Uses the adjusted amount for watering.
+    var displayDetail: String {
+        if isWatering {
+            return displayedWaterAmountMl.map { "\($0)ml" } ?? "Water"
+        } else {
+            return feedingType ?? "Fertilizer"
+        }
+    }
 }
 
 /// Full detail after completing or skipping a task. Matches TaskDetailResponse.

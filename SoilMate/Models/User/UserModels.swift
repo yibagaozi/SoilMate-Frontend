@@ -17,6 +17,7 @@ struct UserProfile: Decodable {
     let timezone: String
     let notificationEnabled: Bool
     let reminderTime: String?     // "HH:mm"
+    let region: String?
     let createdAt: String?
     let updatedAt: String?
     let authMethods: [AuthMethod]?
@@ -42,4 +43,5 @@ struct UpdateUserRequest: Encodable {
     var timezone: String?
     var notificationEnabled: Bool?
     var reminderTime: String?  // "HH:mm"
+    var region: String?
 }

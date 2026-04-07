@@ -23,6 +23,17 @@ final class HomeViewModel {
 
     var isLoading = false
     var errorMessage: String?
+    
+    var lastActionResult: TaskActionResult?
+    
+    struct TaskActionResult: Identifiable {
+        let id = UUID()
+        let task: CareTaskItem
+        let action: TaskActionType
+        let detail: TaskDetail?
+    }
+     
+    enum TaskActionType { case completed, skipped }
 
     // MARK: - Load Data
 
@@ -42,6 +53,9 @@ final class HomeViewModel {
             self.todayTasks = today
             self.todayTask = today.first { $0.status == "PENDING" }
             self.upcomingTasks = upcoming
+            
+            scheduleNotifications()
+            syncToWatch()
         } catch let error as ApiError {
             errorMessage = error.errorDescription
         } catch {
@@ -54,36 +68,121 @@ final class HomeViewModel {
     // MARK: - Complete Task
 
     /// Complete a task (e.g. tap the checkmark on today's card)
-    func completeTask(_ task: CareTaskItem) async {
+    func completeTask(_ task: CareTaskItem, actualAmountMl: Int? = nil) async {
+        let amountToLog = actualAmountMl ?? task.displayedWaterAmountMl
+     
+        let request: CompleteTaskRequest? = task.isWatering
+            ? CompleteTaskRequest(waterAmountMl: amountToLog, feedingType: nil, notes: nil)
+            : nil
+     
         do {
-            let detail = try await CareTaskService.completeTask(id: task.id)
-
-            // Remove from today list and pick next one
+            let detail = try await CareTaskService.completeTask(id: task.id, request: request)
+     
             todayTasks.removeAll { $0.id == task.id }
             todayTask = todayTasks.first { $0.status == "PENDING" }
-
-            // Also remove from upcoming if it was there
             upcomingTasks.removeAll { $0.id == task.id }
-
-            // Update calendar: remove old event, add next one
-            let cm = CalendarManager.shared
-            cm.removeCareEvent(taskId: task.id)
-            if let nextId = detail.nextTaskId, let nextDate = detail.nextTaskDate {
-                cm.addCareEvent(
-                    taskId: nextId,
-                    plantName: task.plantNickname ?? "Plant",
-                    careType: task.careType,
-                    scheduledDate: nextDate
-                )
-            }
+     
+            updateCalendarEvent(task: task, detail: detail)
+            NotificationManager.shared.removeNotification(forTaskId: task.id)
+            syncToWatch()
+     
+            lastActionResult = TaskActionResult(task: task, action: .completed, detail: detail)
         } catch let error as ApiError {
             errorMessage = error.errorDescription
         } catch {
             errorMessage = "Failed to complete task"
         }
     }
+    
+    func skipTask(_ task: CareTaskItem, reason: String? = nil) async {
+        let request = reason.map { SkipTaskRequest(reason: $0) }
+        do {
+            let detail = try await CareTaskService.skipTask(id: task.id, request: request)
+ 
+            todayTasks.removeAll { $0.id == task.id }
+            todayTask = todayTasks.first { $0.status == "PENDING" }
+            upcomingTasks.removeAll { $0.id == task.id }
+ 
+            updateCalendarEvent(task: task, detail: detail)
+            NotificationManager.shared.removeNotification(forTaskId: task.id)
+            syncToWatch()
+ 
+            lastActionResult = TaskActionResult(task: task, action: .skipped, detail: detail)
+        } catch let error as ApiError {
+            errorMessage = error.errorDescription
+        } catch {
+            errorMessage = "Failed to skip task"
+        }
+    }
 
     // MARK: - Helpers
+    
+    private func updateCalendarEvent(task: CareTaskItem, detail: TaskDetail) {
+        let cm = CalendarManager.shared
+        cm.removeCareEvent(taskId: task.id)
+        if let nextId = detail.nextTaskId, let nextDate = detail.nextTaskDate {
+            cm.addCareEvent(
+                taskId: nextId,
+                plantName: task.plantNickname ?? "Plant",
+                careType: task.careType,
+                scheduledDate: nextDate
+            )
+        }
+    }
+ 
+    private func scheduleNotifications() {
+        let nm = NotificationManager.shared
+        guard nm.isAuthorized else { return }
+        let defaultTime = Calendar.current.date(from: DateComponents(hour: 9, minute: 0)) ?? Date()
+        nm.scheduleTaskNotifications(tasks: todayTasks, reminderTime: defaultTime)
+    }
+ 
+    private func syncToWatch() {
+        WatchConnectivityManager.shared.sendTasks(
+            today: todayTasks,
+            upcoming: upcomingTasks
+        )
+    }
+ 
+    // MARK: - Watch Action Handler
+ 
+    func handleWatchAction(
+        taskId: Int64,
+        action: WatchTaskAction,
+        reason: String?,
+        waterAmountMl: Int?
+    ) async {
+        guard let task = todayTasks.first(where: { $0.id == taskId })
+                ?? upcomingTasks.first(where: { $0.id == taskId })
+        else {
+            WatchConnectivityManager.shared.sendTaskResult(
+                PortableTaskResult(
+                    taskId: taskId,
+                    success: false,
+                    action: action.rawValue,
+                    errorMessage: "Task not found"
+                )
+            )
+            return
+        }
+ 
+        switch action {
+        case .complete:
+            // Watch already calculated; prefer its value
+            await completeTask(task, actualAmountMl: waterAmountMl)
+        case .skip:
+            await skipTask(task, reason: reason)
+        }
+ 
+        WatchConnectivityManager.shared.sendTaskResult(
+            PortableTaskResult(
+                taskId: taskId,
+                success: errorMessage == nil,
+                action: action.rawValue,
+                errorMessage: errorMessage
+            )
+        )
+    }
 
     /// Display text for a task: "200ml · scheduled for 8:00 AM"
     func taskDetailText(_ task: CareTaskItem) -> String {
