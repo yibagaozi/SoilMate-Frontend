@@ -6,12 +6,20 @@
 //
 
 import SwiftUI
-
+import WatchConnectivity
+ 
 @main
-struct SoilMateWatch_Watch_AppApp: App {
+struct SoilMateWatchApp: App {
+ 
+    @State private var viewModel = WatchTaskViewModel.shared
+ 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            TaskListView()
+                .environment(viewModel)
+                .onAppear {
+                    viewModel.activateSession()
+                }
         }
     }
 }
