@@ -12,6 +12,12 @@ struct SoilMateApp: App {
 
     // for develop
     @State private var authManager = AuthManager(isMock: false)
+    
+    init() {
+            // Activate watch session at process launch, before any view appears.
+            // This guarantees session is non-nil by the time HomeViewModel.load() runs.
+            WatchConnectivityManager.shared.activate()
+    }
 
     var body: some Scene {
         WindowGroup {

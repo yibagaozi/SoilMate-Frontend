@@ -39,7 +39,10 @@ final class WatchTaskViewModel: NSObject {
     // MARK: - Activate
  
     func activateSession() {
-        guard WCSession.isSupported() else { return }
+        print("[Watch] activateSession")
+        guard WCSession.isSupported() else {
+            print("[Watch] WCSession not supported"); return
+        }
         let session = WCSession.default
         session.delegate = self
         session.activate()
@@ -49,6 +52,7 @@ final class WatchTaskViewModel: NSObject {
     // MARK: - Request Sync
  
     func requestSync() {
+        print("[Watch] requestSync, reachable=\(session?.isReachable ?? false)")
         guard let session, session.isReachable else {
             isLoading = false
             return
@@ -124,7 +128,9 @@ final class WatchTaskViewModel: NSObject {
     // MARK: - Handle Incoming
  
     private func handleMessage(_ message: [String: Any]) {
+        print("[Watch] handleMessage keys=\(Array(message.keys))")
         guard let type = WatchPayloadDecoder.messageType(from: message) else { return }
+        print("[Watch] message type=\(type)")
  
         switch type {
         case .syncTasks:
@@ -181,6 +187,7 @@ extension WatchTaskViewModel: WCSessionDelegate {
         activationDidCompleteWith activationState: WCSessionActivationState,
         error: Error?
     ) {
+        print("[Watch] activation done state=\(activationState.rawValue) reachable=\(session.isReachable) err=\(error?.localizedDescription ?? "none")")
         DispatchQueue.main.async { [weak self] in
             self?.isConnected = session.isReachable
         }

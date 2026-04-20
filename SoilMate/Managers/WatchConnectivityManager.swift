@@ -45,25 +45,28 @@ final class WatchConnectivityManager: NSObject {
     /// Convert CareTaskItems to display-ready PortableTasks and send to watch.
     /// Coefficients are applied here, so the watch only sees final amounts.
     func sendTasks(today: [CareTaskItem], upcoming: [CareTaskItem]) {
-        guard let session, session.isWatchAppInstalled else { return }
- 
-        let portableToday = today.map { Self.portable(from: $0) }
-        let portableUpcoming = upcoming.map { Self.portable(from: $0) }
- 
+        print("[iOS] sendTasks called: today=\(today.count) upcoming=\(upcoming.count)")
+        guard let session else {
+            print("[iOS] no session"); return
+        }
+        print("[iOS] installed=\(session.isWatchAppInstalled) reachable=\(session.isReachable) activation=\(session.activationState.rawValue)")
+        guard session.isWatchAppInstalled else { return }
+
         let payload = WatchPayloadEncoder.encodeSyncTasks(
-            today: portableToday,
-            upcoming: portableUpcoming
+            today: today.map { Self.portable(from: $0) },
+            upcoming: upcoming.map { Self.portable(from: $0) }
         )
- 
+
         session.transferUserInfo(payload)
- 
+        print("[iOS] transferUserInfo queued")
+
         if session.isReachable {
             session.sendMessage(payload, replyHandler: nil) { error in
-                print("[WatchSync] Live send failed: \(error.localizedDescription)")
+                print("[iOS] sendMessage failed: \(error.localizedDescription)")
             }
+            print("[iOS] sendMessage attempted")
         }
     }
- 
     /// Build a display-ready PortableTask from a CareTaskItem.
     /// Applies the coefficient calculation so waterAmountMl is the adjusted value.
     private static func portable(from task: CareTaskItem) -> PortableTask {
