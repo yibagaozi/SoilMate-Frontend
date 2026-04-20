@@ -124,15 +124,12 @@ struct CareHistoryView: View {
                     .foregroundColor(.secondary)
             }
 
-            // Photo placeholder
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color.green.opacity(0.10))
+            // DEMO: local image for all care records
+            Image("IMG_2415")
+                .resizable()
+                .scaledToFill()
                 .frame(width: 120, height: 120)
-                .overlay(
-                    Image(systemName: "photo")
-                        .font(.system(size: 24))
-                        .foregroundColor(.green.opacity(0.3))
-                )
+                .clipShape(RoundedRectangle(cornerRadius: 10))
 
             // Note
             if let note = log.notes, !note.isEmpty {

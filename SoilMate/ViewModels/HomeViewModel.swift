@@ -43,17 +43,20 @@ final class HomeViewModel {
         errorMessage = nil
 
         do {
-            // Fetch today and upcoming at the same time
             async let todayResult = CareTaskService.getTodayTasks()
             async let upcomingResult = CareTaskService.getUpcomingTasks()
 
             let today = try await todayResult
             let upcoming = try await upcomingResult
 
-            self.todayTasks = today
-            self.todayTask = today.first { $0.status == "PENDING" }
-            self.upcomingTasks = upcoming
-            
+            // Build a set of today's IDs to dedupe
+            let todayIds = Set(today.map { $0.id })
+
+            todayTasks = today
+            // Drop any upcoming task whose ID is already in today
+            upcomingTasks = upcoming.filter { !todayIds.contains($0.id) }
+            todayTask = todayTasks.first { $0.status == "PENDING" }
+
             scheduleNotifications()
             syncToWatch()
         } catch let error as ApiError {
@@ -64,7 +67,6 @@ final class HomeViewModel {
 
         isLoading = false
     }
-
     // MARK: - Complete Task
 
     /// Complete a task (e.g. tap the checkmark on today's card)

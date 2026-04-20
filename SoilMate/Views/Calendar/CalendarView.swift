@@ -92,7 +92,6 @@ struct CalendarView: View {
                     switch item {
                     case .task(let task):
                         TaskDetailSheet(task: task, viewModel: viewModel, namespace: namespace) {
-                            // Dismiss sheet then navigate
                             selectedItem = nil
                             navigateToPlantId = task.userPlantId
                         }
@@ -107,7 +106,6 @@ struct CalendarView: View {
                 .presentationDragIndicator(.visible)
                 .presentationBackground(.clear)
             }
-            // Navigate to PlantDetailView after sheet dismisses
             .navigationDestination(item: $navigateToPlantId) { plantId in
                 PlantDetailView(userPlantId: plantId)
             }
@@ -175,7 +173,6 @@ struct CalendarView: View {
             let showWatering = viewModel.selectedFilter == 0 || viewModel.selectedFilter == 1
             let showFeeding = viewModel.selectedFilter == 0 || viewModel.selectedFilter == 2
 
-            // Pending Tasks
             if showWatering && !viewModel.wateringTasks.isEmpty {
                 taskSectionBlock(title: "WATERING", tasks: viewModel.wateringTasks)
             }
@@ -183,7 +180,6 @@ struct CalendarView: View {
                 taskSectionBlock(title: "FEEDING", tasks: viewModel.feedingTasks)
             }
 
-            // Care Logs (completed records)
             if viewModel.hasLogs {
                 let filteredLogs: [CareLogItem] = {
                     if showWatering && showFeeding { return viewModel.wateringLogs + viewModel.feedingLogs }
@@ -197,7 +193,6 @@ struct CalendarView: View {
                 }
             }
 
-            // Empty state
             if !viewModel.hasTasks && !viewModel.hasLogs {
                 Text("No tasks or records for this date")
                     .foregroundColor(.secondary)
@@ -338,9 +333,14 @@ private struct TaskDetailSheet: View {
 
             Spacer().frame(height: 24)
 
-            // Plant info — no background, wider
+            // Plant info
             HStack(spacing: 12) {
-                sheetPlantImage(url: task.plantImageUrl)
+                // DEMO: local image rotated by plant ID
+                Image(DemoPlantImage.name(for: task.userPlantId))
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 50, height: 50)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(task.plantNickname ?? "Plant")
@@ -369,7 +369,7 @@ private struct TaskDetailSheet: View {
             }
             .padding(.horizontal, 8)
 
-            // Task detail card — white background, wider
+            // Task detail card
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Text(task.careTypeDisplay)
@@ -435,7 +435,7 @@ private struct TaskDetailSheet: View {
 
     private var taskAmount: String {
         if task.isWatering {
-            return task.waterAmountMl.map { "\($0) ml" } ?? "Water"
+            return task.displayedWaterAmountMl.map { "\($0) ml" } ?? "Water"
         } else {
             return task.feedingType ?? "Fertilizer"
         }
@@ -455,9 +455,14 @@ private struct LogDetailSheet: View {
 
             Spacer().frame(height: 24)
 
-            // Plant info — no background, wider
+            // Plant info
             HStack(spacing: 12) {
-                sheetPlantImage(url: log.plantImageUrl)
+                // DEMO: local image rotated by plant ID
+                Image(DemoPlantImage.name(for: log.userPlantId ?? 0))
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 50, height: 50)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(log.plantNickname ?? "Plant")
@@ -486,7 +491,7 @@ private struct LogDetailSheet: View {
             }
             .padding(.horizontal, 8)
 
-            // Log detail card — white background, wider
+            // Log detail card
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Text(log.careTypeDisplay)
@@ -504,20 +509,13 @@ private struct LogDetailSheet: View {
                     .font(.system(size: 14))
                     .foregroundColor(.secondary)
 
-                // Photo (placeholder for now, can load from log.photoUrl later)
-                if let photoUrl = log.photoUrl, let url = URL(string: photoUrl) {
-                    AsyncImage(url: url) { image in
-                        image.resizable().scaledToFill()
-                    } placeholder: {
-                        photoPlaceholder
-                    }
+                // DEMO: local image for care log
+                Image("IMG_2415")
+                    .resizable()
+                    .scaledToFill()
                     .frame(width: 100, height: 100)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
-                } else {
-                    photoPlaceholder
-                }
 
-                // Notes
                 if let notes = log.notes, !notes.isEmpty {
                     Text("\"\(notes)\"")
                         .font(.system(size: 14))
@@ -540,45 +538,6 @@ private struct LogDetailSheet: View {
         .ignoresSafeArea(edges: .bottom)
         .glassEffectID("logDetailCard", in: namespace)
     }
-
-    private var photoPlaceholder: some View {
-        RoundedRectangle(cornerRadius: 12)
-            .fill(Color.white)
-            .frame(width: 100, height: 100)
-            .overlay(
-                Image(systemName: "photo")
-                    .font(.system(size: 32))
-                    .foregroundColor(.green.opacity(0.35))
-            )
-    }
-}
-
-// MARK: - Shared plant image for sheets
-
-private func sheetPlantImage(url: String?) -> some View {
-    Group {
-        if let urlStr = url, let imageUrl = URL(string: urlStr) {
-            AsyncImage(url: imageUrl) { image in
-                image.resizable().scaledToFill()
-            } placeholder: {
-                sheetPlantImagePlaceholder
-            }
-        } else {
-            sheetPlantImagePlaceholder
-        }
-    }
-    .frame(width: 50, height: 50)
-    .clipShape(RoundedRectangle(cornerRadius: 12))
-}
-
-private var sheetPlantImagePlaceholder: some View {
-    RoundedRectangle(cornerRadius: 12)
-        .fill(Color.green.opacity(0.12))
-        .overlay(
-            Image(systemName: "leaf.fill")
-                .font(.system(size: 20))
-                .foregroundColor(.green.opacity(0.4))
-        )
 }
 
 // Make CareTaskItem work with sheet(item:)

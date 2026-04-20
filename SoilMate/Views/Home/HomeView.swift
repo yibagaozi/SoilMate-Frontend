@@ -82,10 +82,11 @@ struct HomeView: View {
     // MARK: - Today Card (real data)
 
     private func todayCard(_ task: CareTaskItem) -> some View {
-        // Plant image or placeholder
         ZStack(alignment: .bottom) {
-            // Background image
-            plantImage(url: task.plantImageUrl)
+            // DEMO: local image rotated by plant ID
+            Image(DemoPlantImage.name(for: task.userPlantId))
+                .resizable()
+                .scaledToFill()
                 .frame(maxWidth: .infinity)
                 .aspectRatio(1, contentMode: .fit)
                 .clipShape(RoundedRectangle(cornerRadius: 30))
@@ -190,7 +191,10 @@ struct HomeView: View {
         let statusColor = statusColorFor(statusText)
 
         return VStack(alignment: .leading, spacing: 8) {
-            plantImage(url: task.plantImageUrl)
+            // DEMO: local image rotated by plant ID
+            Image(DemoPlantImage.name(for: task.userPlantId))
+                .resizable()
+                .scaledToFill()
                 .frame(width: 100, height: 100)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
 
@@ -212,33 +216,6 @@ struct HomeView: View {
     }
 
     // MARK: - Helpers
-
-    /// Load image from URL or show placeholder
-    private func plantImage(url: String?) -> some View {
-        Group {
-            if let url, let imageURL = URL(string: url) {
-                AsyncImage(url: imageURL) { image in
-                    image
-                        .resizable()
-                        .scaledToFill()
-                } placeholder: {
-                    leafPlaceholder
-                }
-            } else {
-                leafPlaceholder
-            }
-        }
-    }
-
-    private var leafPlaceholder: some View {
-        RoundedRectangle(cornerRadius: 16)
-            .fill(Color.green.opacity(0.12))
-            .overlay(
-                Image(systemName: "leaf.fill")
-                    .font(.system(size: 30))
-                    .foregroundColor(.green.opacity(0.4))
-            )
-    }
 
     /// Pick color based on status text
     private func statusColorFor(_ text: String) -> Color {

@@ -134,51 +134,48 @@ struct MyGardenView: View {
     }
 }
 
+// MARK: - Demo Image Helper
+
+/// DEMO ONLY - rotates local images IMG_2411...IMG_2414 by plant ID.
+/// Revert after demonstration.
+enum DemoPlantImage {
+    static func name(for plantId: Int64) -> String {
+        let index = Int(abs(plantId) % 4) + 1
+        return "IMG_241\(index)"  // IMG_2411, IMG_2412, IMG_2413, IMG_2414
+    }
+}
+
 // MARK: - Plant Card
 
 private struct PlantCard: View {
     let plant: UserPlantDetail
     let status: MyGardenViewModel.CareStatus
- 
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Plant image - square, adapts to card width
             GeometryReader { geo in
-                ZStack {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.green.opacity(0.12))
- 
-                    if let urlStr = plant.plantImageUrl ?? plant.photoUrl,
-                       let url = URL(string: urlStr) {
-                        AsyncImage(url: url) { image in
-                            image
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: geo.size.width, height: geo.size.width)
-                                .clipped()
-                        } placeholder: {
-                            leafPlaceholder
-                        }
-                    } else {
-                        leafPlaceholder
-                    }
-                }
-                .frame(width: geo.size.width, height: geo.size.width)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                // DEMO: local image rotated by plant ID
+                Image(DemoPlantImage.name(for: plant.id))
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: geo.size.width, height: geo.size.width)
+                    .clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
             }
             .aspectRatio(1, contentMode: .fit)
             .padding(.horizontal, 12)
             .padding(.top, 12)
- 
+
             VStack(alignment: .leading, spacing: 3) {
                 Text(plant.nickname ?? plant.plantName ?? "Plant")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(.primary)
- 
+
                 Text(plant.location ?? "")
                     .font(.system(size: 12))
                     .foregroundColor(.gray)
- 
+
                 Text(status.text)
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(status.color)
@@ -191,14 +188,8 @@ private struct PlantCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .glassEffect(.regular, in: .rect(cornerRadius: 20))
     }
- 
-    private var leafPlaceholder: some View {
-        Image(systemName: "leaf.fill")
-            .font(.system(size: 30))
-            .foregroundColor(.green.opacity(0.5))
-    }
 }
- 
+
 
 #Preview {
     MyGardenView()

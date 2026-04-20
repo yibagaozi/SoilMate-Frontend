@@ -75,11 +75,9 @@ struct PlantDetailView: View {
         .navigationDestination(isPresented: $showEditPlant) {
             EditPlantView(userPlantId: userPlantId)
         }
-        // Dismiss after delete
         .onChange(of: viewModel.didDelete) { _, deleted in
             if deleted { dismiss() }
         }
-        // Reload after editing
         .onChange(of: showEditPlant) { _, showing in
             if !showing { Task { await viewModel.load() } }
         }
@@ -122,7 +120,7 @@ struct PlantDetailView: View {
 
                     VStack(spacing: 12) {
                         infoCard(title: "Light", value: viewModel.sunlightText)
-                        infoCard(title: "Environment", value: "Indoor · Medium Pot")  // hardcoded for now
+                        infoCard(title: "Environment", value: "Indoor · Medium Pot")
                         infoCard(title: "Location", value: viewModel.locationText)
                     }
 
@@ -139,31 +137,12 @@ struct PlantDetailView: View {
     // MARK: - Plant Photo
 
     private var plantPhoto: some View {
-        Group {
-            if let urlStr = viewModel.plant?.plantImageUrl ?? viewModel.plant?.photoUrl,
-               let url = URL(string: urlStr) {
-                AsyncImage(url: url) { image in
-                    image.resizable().scaledToFill()
-                } placeholder: {
-                    photoPlaceholder
-                }
-                .frame(width: 160, height: 160)
-                .clipShape(RoundedRectangle(cornerRadius: 20))
-            } else {
-                photoPlaceholder
-                    .frame(width: 160, height: 160)
-            }
-        }
-    }
-
-    private var photoPlaceholder: some View {
-        RoundedRectangle(cornerRadius: 20)
-            .fill(Color.green.opacity(0.12))
-            .overlay(
-                Image(systemName: "leaf.fill")
-                    .font(.system(size: 40))
-                    .foregroundColor(.green.opacity(0.4))
-            )
+        // DEMO: local image rotated by plant ID
+        Image(DemoPlantImage.name(for: userPlantId))
+            .resizable()
+            .scaledToFill()
+            .frame(width: 160, height: 160)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 
     // MARK: - Watering Card
@@ -245,7 +224,6 @@ struct PlantDetailView: View {
 
     private var historyCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            // Header
             HStack(alignment: .top) {
                 Text("History")
                     .font(.system(size: 20, weight: .bold))
