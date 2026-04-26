@@ -64,6 +64,13 @@ final class NetworkClient {
         return try await perform(request)
     }
 
+    /// PATCH where the backend returns no data (data: null), e.g. update endpoints.
+    /// Status-code check only; no JSON decoding of the body.
+    func patchNoContent<B: Encodable>(_ path: String, body: B) async throws {
+        let request = try buildRequest(path: path, method: "PATCH", body: body)
+        try await performNoContent(request)
+    }
+
     /// DELETE request. Returns nothing.
     func delete(_ path: String) async throws {
         let request = try buildRequest(path: path, method: "DELETE")
@@ -77,8 +84,7 @@ final class NetworkClient {
         body: B
     ) async throws {
         let request = try buildRequest(path: path, method: "POST", body: body)
-        let (_, response) = try await session.data(for: request)
-        try checkHTTPStatus(response)
+        try await performNoContent(request)
     }
 
     // MARK: - Auth Requests (no token needed)
@@ -150,6 +156,25 @@ final class NetworkClient {
             }
 
             return try await performDirect(retryRequest)
+        }
+    }
+
+    /// Same retry-on-401 behavior as `perform`, but does not decode the body.
+    /// Used by patchNoContent / postNoContent.
+    private func performNoContent(_ request: URLRequest) async throws {
+        do {
+            let (_, response) = try await session.data(for: request)
+            try checkHTTPStatus(response)
+        } catch ApiError.unauthorized {
+            try await refreshToken()
+
+            var retryRequest = request
+            if let token = KeychainHelper.read(key: KeychainHelper.accessTokenKey) {
+                retryRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            }
+
+            let (_, response) = try await session.data(for: retryRequest)
+            try checkHTTPStatus(response)
         }
     }
 
@@ -269,9 +294,3 @@ final class NetworkClient {
 
 /// Used when we only care about the message, not the data
 private struct EmptyData: Decodable {}
-
-
-
-
-
-

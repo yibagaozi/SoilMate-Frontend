@@ -12,11 +12,17 @@ struct SoilMateApp: App {
 
     // for develop
     @State private var authManager = AuthManager(isMock: false)
-    
+
+    @Environment(\.scenePhase) private var scenePhase
+
     init() {
-            // Activate watch session at process launch, before any view appears.
-            // This guarantees session is non-nil by the time HomeViewModel.load() runs.
-            WatchConnectivityManager.shared.activate()
+        // Activate watch session at process launch, before any view appears.
+        // This guarantees session is non-nil by the time HomeViewModel.load() runs.
+        WatchConnectivityManager.shared.activate()
+
+        // Start watching the network so the offline queue can be flushed
+        // automatically when connectivity returns.
+        NetworkMonitor.shared.start()
     }
 
     var body: some Scene {
@@ -27,6 +33,13 @@ struct SoilMateApp: App {
             } else {
                 LoginView()
                     .environment(authManager)
+            }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            // When the app comes back to the foreground, try to send any
+            // queued task updates that piled up while we were offline.
+            if phase == .active {
+                Task { await PendingUpdateQueue.shared.flush() }
             }
         }
     }
