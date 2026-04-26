@@ -20,27 +20,44 @@ final class SettingsViewModel {
     // MARK: - Settings State
 
     var notificationEnabled = true
-    var reminderTime = Date()  // displayed as time picker
+
+    /// Defaults to 9:00 AM. Using a fixed reference time prevents the
+    /// picker from briefly showing the current launch time before the
+    /// server value loads.
+    var reminderTime: Date = SettingsViewModel.defaultReminderTime
 
     /// Sync with iOS calendar (local only, not sent to backend)
     var syncCalendar = true
-    
+
     // Region for watering calculation
     var region: Region = WateringCalculator.currentRegion
 
     /// Notification sound (local only)
     var sound = "Default"
 
-    // MARK: - State
+    // MARK: - Loading State
 
     var isLoading = false
     var isSaving = false
     var errorMessage: String?
     var successMessage: String?
 
+    /// True after the initial profile load completes. The view uses this
+    /// to suppress auto-save callbacks that would otherwise fire when
+    /// fillFrom() updates fields from the server response.
+    var hasLoaded = false
+
+    // MARK: - Default
+
+    private static var defaultReminderTime: Date {
+        var c = DateComponents()
+        c.hour = 9
+        c.minute = 0
+        return Calendar.current.date(from: c) ?? Date()
+    }
+
     // MARK: - Load Profile
 
-    /// Call this in .task { } when SettingsView appears
     func load() async {
         isLoading = true
         errorMessage = nil
@@ -55,19 +72,26 @@ final class SettingsViewModel {
         }
 
         isLoading = false
+
+        // Let SwiftUI flush any .onChange callbacks triggered by fillFrom
+        // before we mark the model as loaded. Those callbacks will see
+        // hasLoaded = false and skip the auto-save. Anything the user
+        // changes after this delay is treated as a real edit.
+        try? await Task.sleep(for: .milliseconds(150))
+        hasLoaded = true
     }
 
     // MARK: - Save Settings
 
-    /// Save changed settings to the server.
-    /// Call this when user toggles notification, changes time, etc.
     func saveSettings() async {
         isSaving = true
         errorMessage = nil
         successMessage = nil
 
-        // Format reminder time as "HH:mm"
+        // Format reminder time as "HH:mm" using a fixed locale so that
+        // 24-hour formatting works consistently across regions.
         let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "HH:mm"
         let timeString = formatter.string(from: reminderTime)
 
@@ -80,8 +104,7 @@ final class SettingsViewModel {
         )
 
         do {
-            let updated = try await UserService.updateProfile(request)
-            fillFrom(updated)
+            _ = try await UserService.updateProfile(request)
             successMessage = "Settings saved"
         } catch let error as ApiError {
             errorMessage = error.errorDescription
@@ -91,9 +114,9 @@ final class SettingsViewModel {
 
         isSaving = false
     }
-    
+
     // MARK: - Region
-     
+
     /// Called when the user picks a region from the list.
     func setRegion(_ newRegion: Region) {
         region = newRegion
@@ -105,7 +128,7 @@ final class SettingsViewModel {
             await refreshWatchTasks()
         }
     }
-     
+
     /// Recalculate and re-push tasks to the watch after a region change.
     private func refreshWatchTasks() async {
         do {
@@ -129,15 +152,18 @@ final class SettingsViewModel {
         timezone = profile.timezone
         notificationEnabled = profile.notificationEnabled
 
-        // Parse "HH:mm:ss" or "HH:mm" into a Date for the time picker
-        if let timeStr = profile.reminderTime {
+        // Parse reminder time. Tolerant of trailing seconds, millis, and
+        // anything else by taking only the first 5 characters ("HH:mm").
+        if let timeStr = profile.reminderTime, timeStr.count >= 5 {
+            let trimmed = String(timeStr.prefix(5))
             let formatter = DateFormatter()
-            formatter.dateFormat = timeStr.count > 5 ? "HH:mm:ss" : "HH:mm"
-            if let date = formatter.date(from: timeStr) {
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.dateFormat = "HH:mm"
+            if let date = formatter.date(from: trimmed) {
                 reminderTime = date
             }
         }
-        
+
         // Region: prefer server value, fall back to timezone auto-detect
         if let regionString = profile.region,
             let serverRegion = Region(rawValue: regionString) {

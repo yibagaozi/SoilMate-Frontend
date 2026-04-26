@@ -101,6 +101,7 @@ struct SettingsView: View {
                         Toggle("Enable Reminders", isOn: $viewModel.notificationEnabled)
                             .tint(.mint)
                             .onChange(of: viewModel.notificationEnabled) { _, _ in
+                                guard viewModel.hasLoaded else { return }
                                 Task { await viewModel.saveSettings() }
                             }
 
@@ -109,6 +110,7 @@ struct SettingsView: View {
                                    displayedComponents: .hourAndMinute)
                         .tint(.mint)
                         .onChange(of: viewModel.reminderTime) { _, _ in
+                            guard viewModel.hasLoaded else { return }
                             Task { await viewModel.saveSettings() }
                         }
 
