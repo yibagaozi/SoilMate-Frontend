@@ -8,6 +8,7 @@
 import SwiftUI
 import VisionKit
 import AVFoundation
+import PhotosUI
 
 struct AddPlantView: View {
 
@@ -16,6 +17,7 @@ struct AddPlantView: View {
     @State private var scannedCode: String? = nil
     @State private var cameraPermissionGranted = false
     @State private var showPotSizeInfo = false
+    @State private var photoItem: PhotosPickerItem?
 
     private let waterFrequencyOptions = [3, 5, 7, 10, 14, 21, 30]
     private let feedingOptions = [15, 30, 60, 90, 120]
@@ -48,6 +50,26 @@ struct AddPlantView: View {
                         }
                     }
                     .buttonStyle(.plain)
+
+                    // Photo picker row
+                    PhotosPicker(selection: $photoItem, matching: .images) {
+                        HStack {
+                            Text("Photo").foregroundColor(.primary)
+                            Spacer()
+                            if let img = viewModel.selectedImage {
+                                Image(uiImage: img)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 36, height: 36)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                            } else {
+                                Text("Select").foregroundColor(.secondary)
+                            }
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(Color(.tertiaryLabel))
+                        }
+                    }
 
                     // Pot Size
                     HStack {
@@ -190,6 +212,15 @@ struct AddPlantView: View {
         .onChange(of: scannedCode) { _, newValue in
             guard let code = newValue else { return }
             Task { await viewModel.onBarcodeScanned(code) }
+        }
+        .onChange(of: photoItem) { _, newItem in
+            // Load the picked photo into UIImage and store on the view model.
+            Task {
+                guard let item = newItem,
+                      let data = try? await item.loadTransferable(type: Data.self),
+                      let img = UIImage(data: data) else { return }
+                await MainActor.run { viewModel.selectedImage = img }
+            }
         }
         .onChange(of: viewModel.didAddPlant) { _, added in
             if added { dismiss() }

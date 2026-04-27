@@ -137,12 +137,12 @@ struct PlantDetailView: View {
     // MARK: - Plant Photo
 
     private var plantPhoto: some View {
-        // DEMO: local image rotated by plant ID
-        Image(DemoPlantImage.name(for: userPlantId))
-            .resizable()
-            .scaledToFill()
-            .frame(width: 160, height: 160)
-            .clipShape(RoundedRectangle(cornerRadius: 20))
+        LocalPhotoView(
+            photoUrl: viewModel.plant?.photoUrl,
+            fallbackImageName: DemoPlantImage.name(for: userPlantId)
+        )
+        .frame(width: 160, height: 160)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 
     // MARK: - Watering Card

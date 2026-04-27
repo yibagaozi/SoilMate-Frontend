@@ -10,6 +10,8 @@ import SwiftUI
 struct HomeView: View {
 
     @State private var viewModel = HomeViewModel()
+    @State private var selectedTask: CareTaskItem? = nil
+    @Namespace private var namespace
 
     private let headerHeight: CGFloat = 48
 
@@ -51,6 +53,18 @@ struct HomeView: View {
             .task {
                 await viewModel.load()
             }
+            .sheet(item: $selectedTask) { task in
+                HomeTaskSheet(
+                    task: task,
+                    viewModel: viewModel,
+                    namespace: namespace
+                ) {
+                    selectedTask = nil
+                }
+                .presentationDetents([.fraction(0.55)])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(.clear)
+            }
         }
     }
 
@@ -79,11 +93,10 @@ struct HomeView: View {
         .frame(height: headerHeight, alignment: .center)
     }
 
-    // MARK: - Today Card (real data)
+    // MARK: - Today Card
 
     private func todayCard(_ task: CareTaskItem) -> some View {
         ZStack(alignment: .bottom) {
-            // DEMO: local image rotated by plant ID
             Image(DemoPlantImage.name(for: task.userPlantId))
                 .resizable()
                 .scaledToFill()
@@ -91,7 +104,6 @@ struct HomeView: View {
                 .aspectRatio(1, contentMode: .fit)
                 .clipShape(RoundedRectangle(cornerRadius: 30))
 
-            // Info overlay at bottom
             VStack(alignment: .leading, spacing: 8) {
                 Text(task.plantNickname ?? "Plant")
                     .font(.title2)
@@ -115,7 +127,7 @@ struct HomeView: View {
                     Spacer()
 
                     Button {
-                        Task { await viewModel.completeTask(task) }
+                        selectedTask = task
                     } label: {
                         Image(systemName: "checkmark")
                             .foregroundColor(.white)
@@ -191,7 +203,6 @@ struct HomeView: View {
         let statusColor = statusColorFor(statusText)
 
         return VStack(alignment: .leading, spacing: 8) {
-            // DEMO: local image rotated by plant ID
             Image(DemoPlantImage.name(for: task.userPlantId))
                 .resizable()
                 .scaledToFill()
@@ -217,7 +228,6 @@ struct HomeView: View {
 
     // MARK: - Helpers
 
-    /// Pick color based on status text
     private func statusColorFor(_ text: String) -> Color {
         switch text {
         case "Overdue": return .red
@@ -225,6 +235,232 @@ struct HomeView: View {
         case "Tomorrow": return .orange
         default:         return .mint
         }
+    }
+}
+
+// MARK: - Home Task Sheet
+
+private struct HomeTaskSheet: View {
+
+    let task: CareTaskItem
+    let viewModel: HomeViewModel
+    let namespace: Namespace.ID
+    let onDismiss: () -> Void
+
+    @State private var adjustedAmount: Double
+    @State private var isActioning = false
+
+    private let sliderMin: Double = 50
+    private let sliderMax: Double = 500
+    private let sliderStep: Double = 10
+
+    init(task: CareTaskItem, viewModel: HomeViewModel, namespace: Namespace.ID, onDismiss: @escaping () -> Void) {
+        self.task = task
+        self.viewModel = viewModel
+        self.namespace = namespace
+        self.onDismiss = onDismiss
+        let initial = Double(task.displayedWaterAmountMl ?? task.waterAmountMl ?? 200)
+        self._adjustedAmount = State(initialValue: initial)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+
+            Spacer().frame(height: 24)
+
+            // MARK: Plant Info Row
+            HStack(spacing: 12) {
+                Image(DemoPlantImage.name(for: task.userPlantId))
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 50, height: 50)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(task.plantNickname ?? "Plant")
+                        .font(.system(size: 17, weight: .semibold))
+                    Text(task.plantLocation ?? "—")
+                        .font(.system(size: 13))
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                HStack(spacing: 4) {
+                    Text("Detail")
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(Color(.tertiaryLabel))
+                }
+            }
+            .padding(.horizontal, 8)
+
+            // MARK: Detail Card
+            VStack(alignment: .leading, spacing: 14) {
+
+                // Title row
+                HStack(alignment: .firstTextBaseline) {
+                    Text(task.careTypeDisplay)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(task.isWatering ? .blue : .orange)
+
+                    Spacer()
+                }
+
+                if task.isWatering {
+                    // Suggested amount subtitle
+                    Text("Suggested amount: \(task.displayedWaterAmountMl ?? 0) ml · Today")
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+
+                    Divider()
+
+                    // Instructions
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Instructions")
+                            .font(.system(size: 15, weight: .semibold))
+                        Text("Water thoroughly until it drains from the bottom.")
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary)
+                    }
+
+                    // Amount for Today
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Amount for Today")
+                            .font(.system(size: 15, weight: .semibold))
+
+                        HStack(alignment: .firstTextBaseline, spacing: 4) {
+                            Text("\(Int(adjustedAmount))")
+                                .font(.system(size: 34, weight: .bold))
+                                .foregroundColor(.mint)
+                                .contentTransition(.numericText())
+                                .animation(.snappy, value: Int(adjustedAmount))
+                            Text("ml")
+                                .font(.system(size: 16))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+
+                    // Slider
+                    HStack(spacing: 8) {
+                        Text("\(Int(sliderMin))")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                        Text("ml")
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+
+                        Slider(
+                            value: $adjustedAmount,
+                            in: sliderMin...sliderMax,
+                            step: sliderStep
+                        )
+                        .tint(.mint)
+
+                        Text("\(Int(sliderMax))")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                        Text("ml")
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                    }
+
+                    // Tags
+                    let tags = WateringCalculator.tags(
+                        potSize: PotSize.from(task.potSize),
+                        environment: GrowingEnvironment.from(task.environment)
+                    )
+                    HStack(spacing: 6) {
+                        ForEach(tags, id: \.self) { tag in
+                            tagView(tag)
+                        }
+                    }
+
+                } else {
+                    // Feeding task — simpler display
+                    Text(task.feedingType ?? "General fertilizer")
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+
+                    Text("Scheduled for today")
+                        .font(.system(size: 13))
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 28)
+                    .fill(Color.white.opacity(0.8))
+            )
+            .padding(.horizontal, 4)
+
+            // MARK: Action Buttons
+            HStack(spacing: 12) {
+                Button {
+                    guard !isActioning else { return }
+                    isActioning = true
+                    Task {
+                        await viewModel.skipTask(task)
+                        onDismiss()
+                    }
+                } label: {
+                    Text("Skip")
+                        .font(.system(size: 15, weight: .semibold))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 36)
+                }
+                .buttonStyle(.bordered)
+                .disabled(isActioning)
+
+                Button {
+                    guard !isActioning else { return }
+                    isActioning = true
+                    Task {
+                        let amount = task.isWatering ? Int(adjustedAmount) : nil
+                        await viewModel.completeTask(task, actualAmountMl: amount)
+                        onDismiss()
+                    }
+                } label: {
+                    Text("Finish")
+                        .font(.system(size: 15, weight: .semibold))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 36)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.mint)
+                .disabled(isActioning)
+            }
+            .padding(.horizontal, 12)
+
+            Spacer(minLength: 8)
+        }
+        .padding(.horizontal, 12)
+        .padding(.bottom, 6)
+        .ignoresSafeArea(edges: .bottom)
+        .glassEffectID("homeTaskCard", in: namespace)
+    }
+
+    // MARK: - Tag View
+
+    private func tagView(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 12, weight: .medium))
+            .foregroundColor(.secondary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(Color(.secondarySystemFill))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+// MARK: - Make CareTaskItem work with sheet(item:)
+
+extension CareTaskItem: @retroactive Hashable {
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
     }
 }
 

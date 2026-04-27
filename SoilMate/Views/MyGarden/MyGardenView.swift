@@ -137,7 +137,7 @@ struct MyGardenView: View {
 // MARK: - Demo Image Helper
 
 /// DEMO ONLY - rotates local images IMG_2411...IMG_2414 by plant ID.
-/// Revert after demonstration.
+/// Used as a fallback when a plant has no user-supplied photo.
 enum DemoPlantImage {
     static func name(for plantId: Int64) -> String {
         let index = Int(abs(plantId) % 4) + 1
@@ -155,13 +155,13 @@ private struct PlantCard: View {
         VStack(alignment: .leading, spacing: 0) {
             // Plant image - square, adapts to card width
             GeometryReader { geo in
-                // DEMO: local image rotated by plant ID
-                Image(DemoPlantImage.name(for: plant.id))
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: geo.size.width, height: geo.size.width)
-                    .clipped()
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                LocalPhotoView(
+                    photoUrl: plant.photoUrl,
+                    fallbackImageName: DemoPlantImage.name(for: plant.id)
+                )
+                .frame(width: geo.size.width, height: geo.size.width)
+                .clipped()
+                .clipShape(RoundedRectangle(cornerRadius: 12))
             }
             .aspectRatio(1, contentMode: .fit)
             .padding(.horizontal, 12)

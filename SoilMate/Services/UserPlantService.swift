@@ -27,11 +27,11 @@ enum UserPlantService {
         try await client.post(APIEndpoints.userPlants, body: request)
     }
 
-    /// Update a plant in the garden (nickname, care schedule, etc.).
+    /// Update a plant in the garden (nickname, care schedule, photo, etc.).
+    /// Backend returns ApiResponse with `data: null` on success, so we use
+    /// patchNoContent to avoid treating that as an error.
     static func updatePlant(id: Int64, _ request: UpdateUserPlantRequest) async throws {
-        // Backend returns ApiResponse<null> with message "Plant updated"
-        // We use a dummy decode type since we don't need the response body.
-        let _: EmptyBody = try await client.patch(APIEndpoints.userPlant(id: id), body: request)
+        try await client.patchNoContent(APIEndpoints.userPlant(id: id), body: request)
     }
 
     /// Delete a plant from the garden.
@@ -39,6 +39,3 @@ enum UserPlantService {
         try await client.delete(APIEndpoints.userPlant(id: id))
     }
 }
-
-/// Helper type for endpoints that return no data
-private struct EmptyBody: Decodable {}

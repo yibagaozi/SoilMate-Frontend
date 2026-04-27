@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import PhotosUI
 
 struct EditPlantView: View {
 
@@ -15,6 +16,7 @@ struct EditPlantView: View {
     @State private var viewModel: EditPlantViewModel
     @State private var showSaveSuccess = false
     @State private var showPotSizeInfo = false
+    @State private var photoItem: PhotosPickerItem?
 
     init(userPlantId: Int64) {
         self.userPlantId = userPlantId
@@ -156,12 +158,29 @@ struct EditPlantView: View {
                 )
             }
 
+            // Photo
             Section {
-                HStack {
-                    Text("Change Photo")
-                    Spacer()
-                    HStack(spacing: 4) {
-                        Text("Select").foregroundColor(.secondary)
+                PhotosPicker(selection: $photoItem, matching: .images) {
+                    HStack {
+                        Text("Change Photo").foregroundColor(.primary)
+                        Spacer()
+                        if let img = viewModel.selectedImage {
+                            Image(uiImage: img)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 36, height: 36)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        } else if let existing = viewModel.existingPhotoUrl,
+                                  PhotoStorage.isLocal(existing),
+                                  let img = PhotoStorage.load(existing) {
+                            Image(uiImage: img)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 36, height: 36)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        } else {
+                            Text("Select").foregroundColor(.secondary)
+                        }
                         Image(systemName: "chevron.right")
                             .font(.system(size: 11, weight: .medium))
                             .foregroundColor(Color(.tertiaryLabel))
@@ -212,6 +231,14 @@ struct EditPlantView: View {
             }
         }
         .task { await viewModel.load() }
+        .onChange(of: photoItem) { _, newItem in
+            Task {
+                guard let item = newItem,
+                      let data = try? await item.loadTransferable(type: Data.self),
+                      let img = UIImage(data: data) else { return }
+                await MainActor.run { viewModel.selectedImage = img }
+            }
+        }
         .onChange(of: viewModel.didSave) { _, saved in
             if saved { showSaveSuccess = true }
         }
