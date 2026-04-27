@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UIKit
 
 @Observable
 final class EditPlantViewModel {
@@ -26,6 +27,14 @@ final class EditPlantViewModel {
     var lightRequirement = "Flexible"
 
     var enableNotification = true
+
+    // MARK: - Photo
+
+    /// New image picked by the user. nil if not changed.
+    var selectedImage: UIImage?
+
+    /// The current photo filename (or remote URL) loaded from the server.
+    var existingPhotoUrl: String?
 
     // MARK: - State
 
@@ -79,6 +88,7 @@ final class EditPlantViewModel {
         location = plant.location ?? ""
         potSize = plant.potSizeValue
         environment = plant.environmentValue
+        existingPhotoUrl = plant.photoUrl
 
         waterFrequency = plant.wateringIntervalDays ?? 14
         waterAmount = plant.wateringAmountMl ?? 200
@@ -99,6 +109,15 @@ final class EditPlantViewModel {
         isSaving = true
         errorMessage = nil
 
+        // If user picked a new photo, save it locally and use the new
+        // filename. Otherwise keep the existing one.
+        var newPhotoUrl = existingPhotoUrl
+        var savedNewPhoto: String?
+        if let img = selectedImage, let filename = PhotoStorage.save(img) {
+            newPhotoUrl = filename
+            savedNewPhoto = filename
+        }
+
         let request = UpdateUserPlantRequest(
             nickname: nickname.isEmpty ? nil : nickname,
             location: location.isEmpty ? nil : location,
@@ -108,16 +127,27 @@ final class EditPlantViewModel {
             feedingIntervalDays: feedingFrequency,
             feedingType: feedingType,
             potSize: potSize.rawValue,
-            environment: environment.rawValue
+            environment: environment.rawValue,
+            imageUrl: newPhotoUrl
         )
 
         do {
             try await UserPlantService.updatePlant(id: userPlantId, request)
+            // Backend accepted: now safe to delete the old local photo file.
+            if savedNewPhoto != nil,
+               let old = existingPhotoUrl,
+               PhotoStorage.isLocal(old) {
+                PhotoStorage.delete(old)
+            }
+            existingPhotoUrl = newPhotoUrl
             didSave = true
         } catch let error as ApiError {
             errorMessage = error.errorDescription
+            // Roll back the new local photo if backend rejected.
+            if let f = savedNewPhoto { PhotoStorage.delete(f) }
         } catch {
             errorMessage = "Failed to save changes"
+            if let f = savedNewPhoto { PhotoStorage.delete(f) }
         }
 
         isSaving = false

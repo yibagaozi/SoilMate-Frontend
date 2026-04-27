@@ -49,9 +49,17 @@ final class MyGardenViewModel {
 
     /// Delete a plant from the garden
     func deletePlant(id: Int64) async {
+        // Look up the local photo before deletion so we can clean it up.
+        let photoToDelete = plants.first(where: { $0.id == id })?.photoUrl
+
         do {
             try await UserPlantService.deletePlant(id: id)
             plants.removeAll { $0.id == id }
+
+            // Remove the local photo file once the backend has confirmed deletion.
+            if let f = photoToDelete, PhotoStorage.isLocal(f) {
+                PhotoStorage.delete(f)
+            }
         } catch let error as ApiError {
             errorMessage = error.errorDescription
         } catch {

@@ -37,10 +37,18 @@ final class HomeViewModel {
 
     // MARK: - Load Data
 
-    /// Call this in .task { } when HomeView appears
+    /// Call this in .task { } when HomeView appears.
+    /// Tries the network first; falls back to the cached today list
+    /// if the network call fails.
     func load() async {
         isLoading = true
         errorMessage = nil
+
+        // Show cached tasks immediately if we have nothing yet.
+        if todayTasks.isEmpty {
+            todayTasks = TaskCache.loadTodayTasks()
+            todayTask = todayTasks.first { $0.status == "PENDING" }
+        }
 
         do {
             async let todayResult = CareTaskService.getTodayTasks()
@@ -53,72 +61,96 @@ final class HomeViewModel {
             let todayIds = Set(today.map { $0.id })
 
             todayTasks = today
-            // Drop any upcoming task whose ID is already in today
             upcomingTasks = upcoming.filter { !todayIds.contains($0.id) }
             todayTask = todayTasks.first { $0.status == "PENDING" }
+
+            // Persist a fresh cache.
+            TaskCache.saveTodayTasks(today)
 
             scheduleNotifications()
             syncToWatch()
         } catch let error as ApiError {
             errorMessage = error.errorDescription
+            // Cache already loaded above; user keeps seeing it.
         } catch {
             errorMessage = "Failed to load tasks"
         }
 
         isLoading = false
     }
+
     // MARK: - Complete Task
 
-    /// Complete a task (e.g. tap the checkmark on today's card)
+    /// Optimistic complete: update local UI + cache, then try the
+    /// network. If the network call fails, the action is queued and
+    /// retried on the next flush.
     func completeTask(_ task: CareTaskItem, actualAmountMl: Int? = nil) async {
         let amountToLog = actualAmountMl ?? task.displayedWaterAmountMl
-     
+
+        // 1) Local update (UI + cache)
+        applyLocalRemoval(task: task)
+
+        // 2) Try the network
         let request: CompleteTaskRequest? = task.isWatering
             ? CompleteTaskRequest(waterAmountMl: amountToLog, feedingType: nil, notes: nil)
             : nil
-     
+
         do {
             let detail = try await CareTaskService.completeTask(id: task.id, request: request)
-     
-            todayTasks.removeAll { $0.id == task.id }
-            todayTask = todayTasks.first { $0.status == "PENDING" }
-            upcomingTasks.removeAll { $0.id == task.id }
-     
             updateCalendarEvent(task: task, detail: detail)
-            NotificationManager.shared.removeNotification(forTaskId: task.id)
-            syncToWatch()
-     
             lastActionResult = TaskActionResult(task: task, action: .completed, detail: detail)
-        } catch let error as ApiError {
-            errorMessage = error.errorDescription
         } catch {
-            errorMessage = "Failed to complete task"
+            // Queue for later retry; UI already reflects the action.
+            await PendingUpdateQueue.shared.enqueue(
+                PendingUpdate(
+                    taskId: task.id,
+                    action: .complete,
+                    waterAmountMl: amountToLog,
+                    skipReason: nil,
+                    timestamp: Date()
+                )
+            )
+            lastActionResult = TaskActionResult(task: task, action: .completed, detail: nil)
         }
     }
     
     func skipTask(_ task: CareTaskItem, reason: String? = nil) async {
+        // 1) Local update
+        applyLocalRemoval(task: task)
+
+        // 2) Network
         let request = reason.map { SkipTaskRequest(reason: $0) }
         do {
             let detail = try await CareTaskService.skipTask(id: task.id, request: request)
- 
-            todayTasks.removeAll { $0.id == task.id }
-            todayTask = todayTasks.first { $0.status == "PENDING" }
-            upcomingTasks.removeAll { $0.id == task.id }
- 
             updateCalendarEvent(task: task, detail: detail)
-            NotificationManager.shared.removeNotification(forTaskId: task.id)
-            syncToWatch()
- 
             lastActionResult = TaskActionResult(task: task, action: .skipped, detail: detail)
-        } catch let error as ApiError {
-            errorMessage = error.errorDescription
         } catch {
-            errorMessage = "Failed to skip task"
+            await PendingUpdateQueue.shared.enqueue(
+                PendingUpdate(
+                    taskId: task.id,
+                    action: .skip,
+                    waterAmountMl: nil,
+                    skipReason: reason,
+                    timestamp: Date()
+                )
+            )
+            lastActionResult = TaskActionResult(task: task, action: .skipped, detail: nil)
         }
     }
 
     // MARK: - Helpers
-    
+
+    /// Remove a task from in-memory lists, the on-disk cache, the
+    /// notification center, and push the new state to the watch.
+    private func applyLocalRemoval(task: CareTaskItem) {
+        todayTasks.removeAll { $0.id == task.id }
+        todayTask = todayTasks.first { $0.status == "PENDING" }
+        upcomingTasks.removeAll { $0.id == task.id }
+        TaskCache.removeTask(id: task.id)
+        NotificationManager.shared.removeNotification(forTaskId: task.id)
+        syncToWatch()
+    }
+
     private func updateCalendarEvent(task: CareTaskItem, detail: TaskDetail) {
         let cm = CalendarManager.shared
         cm.removeCareEvent(taskId: task.id)

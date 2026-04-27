@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UIKit
 
 @Observable
 final class AddPlantViewModel {
@@ -36,6 +37,11 @@ final class AddPlantViewModel {
     var lightRequirement = "Flexible"
 
     var enableNotification = true
+
+    // MARK: - Photo
+
+    /// Image picked by the user. Saved to disk on `addToGarden()`.
+    var selectedImage: UIImage?
 
     // MARK: - State
 
@@ -130,6 +136,13 @@ final class AddPlantViewModel {
         isAdding = true
         errorMessage = nil
 
+        // Save photo to local disk first (if any). Only the filename
+        // is sent to the backend.
+        var photoFilename: String?
+        if let img = selectedImage {
+            photoFilename = PhotoStorage.save(img)
+        }
+
         let request = AddUserPlantRequest(
             barcodeValue: scannedBarcodeValue,
             plantId: plant.id,
@@ -141,7 +154,8 @@ final class AddPlantViewModel {
             feedingIntervalDays: feedingFrequency,
             feedingType: feedingType,
             potSize: potSize.rawValue,
-            environment: environment.rawValue
+            environment: environment.rawValue,
+            imageUrl: photoFilename
         )
 
         do {
@@ -150,8 +164,11 @@ final class AddPlantViewModel {
             didAddPlant = true
         } catch let error as ApiError {
             errorMessage = error.errorDescription
+            // Roll back the local photo if the backend rejected the plant.
+            if let f = photoFilename { PhotoStorage.delete(f) }
         } catch {
             errorMessage = "Failed to add plant"
+            if let f = photoFilename { PhotoStorage.delete(f) }
         }
 
         isAdding = false
@@ -174,6 +191,7 @@ final class AddPlantViewModel {
         feedingType = "General fertilizer"
         lightRequirement = "Flexible"
         enableNotification = true
+        selectedImage = nil
         errorMessage = nil
         didAddPlant = false
         newPlantId = nil

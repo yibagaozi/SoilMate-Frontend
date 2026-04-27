@@ -10,7 +10,8 @@ import Foundation
 // MARK: - Care Task (upcoming reminders)
 
 /// A scheduled care task. Matches CareTaskItemResponse.
-struct CareTaskItem: Decodable, Identifiable {
+/// Codable so it can be cached to disk for offline support.
+struct CareTaskItem: Codable, Identifiable {
     let id: Int64
     let careType: String        // "WATERING" or "FEEDING"
     let scheduledDate: String   // "2025-04-20"

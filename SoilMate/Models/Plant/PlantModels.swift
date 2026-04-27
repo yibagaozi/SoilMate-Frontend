@@ -61,10 +61,10 @@ struct UserPlantDetail: Decodable, Identifiable {
 }
 
 extension UserPlantDetail {
- 
+
     var potSizeValue: PotSize { PotSize.from(potSize) }
     var environmentValue: GrowingEnvironment { GrowingEnvironment.from(environment) }
- 
+
     /// Calculated watering amount for today.
     var calculatedWaterAmountMl: Int? {
         guard let base = wateringAmountMl else { return nil }
@@ -91,6 +91,7 @@ struct AddUserPlantRequest: Encodable {
     var feedingType: String?
     var potSize: String?
     var environment: String?
+    var imageUrl: String?
 }
 
 /// Update an existing plant in my garden
@@ -104,4 +105,5 @@ struct UpdateUserPlantRequest: Encodable {
     var feedingType: String?
     var potSize: String?
     var environment: String?
+    var imageUrl: String?
 }
