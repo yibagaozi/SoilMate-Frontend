@@ -7,67 +7,56 @@
 
 import SwiftUI
 
-private struct StaticTask: Identifiable, Equatable {
-    let id = UUID()
-    let plantName: String
-    let scientificName: String
-    let detail: String
-    let amount: String
-    let date: String
-    let note: String
-    let isWatering: Bool
-    let plantImageName: String?
-    let recordImageName: String?
+// MARK: - Selectable item enum (task or log)
 
-    static func == (lhs: StaticTask, rhs: StaticTask) -> Bool {
+private enum CalendarItem: Identifiable, Equatable {
+    case task(CareTaskItem)
+    case log(CareLogItem)
+
+    var id: String {
+        switch self {
+        case .task(let t): return "task-\(t.id)"
+        case .log(let l): return "log-\(l.id)"
+        }
+    }
+
+    var userPlantId: Int64? {
+        switch self {
+        case .task(let t): return t.userPlantId
+        case .log(let l): return l.userPlantId
+        }
+    }
+
+    static func == (lhs: CalendarItem, rhs: CalendarItem) -> Bool {
         lhs.id == rhs.id
     }
 }
-
-private let wateringTasks = [
-    StaticTask(plantName: "Snake Plant", scientificName: "Sansevieria trifasciata",
-               detail: "200ml", amount: "200 ml", date: "Apr 20, 2025",
-               note: "Leaves looking healthy after watering", isWatering: true,
-               plantImageName: "IMG_2411", recordImageName: "IMG_2415"),
-    StaticTask(plantName: "Succulent", scientificName: "Echeveria elegans",
-               detail: "160ml", amount: "160 ml", date: "Apr 20, 2025",
-               note: "Soil was very dry before watering", isWatering: true,
-               plantImageName: "IMG_2412", recordImageName: "IMG_2415"),
-]
-
-private let feedingTasks = [
-    StaticTask(plantName: "Monstera", scientificName: "Monstera deliciosa",
-               detail: "General fertilizer", amount: "General fertilizer", date: "Apr 20, 2025",
-               note: "Applied half-strength liquid fertilizer", isWatering: false,
-               plantImageName: "IMG_2414", recordImageName: "IMG_2415"),
-]
 
 // MARK: - Calendar View
 
 struct CalendarView: View {
 
-    private let headerHeight: CGFloat = 48
-
-    @State private var selectedDate = Date()
-    @State private var selectedFilter = 0
-    @State private var selectedTask: StaticTask? = nil
+    @State private var viewModel = CalendarViewModel()
+    @State private var selectedItem: CalendarItem? = nil
+    @State private var navigateToPlantId: Int64? = nil
     @Namespace private var namespace
 
+    private let headerHeight: CGFloat = 48
     private let filters = ["All Tasks", "Watering", "Feeding"]
 
     var body: some View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
-                    
                     header
-                    
-                    Spacer().frame(height:16)
-                    
+
+                    Spacer().frame(height: 16)
+
+                    // Date picker
                     VStack(alignment: .leading, spacing: 12) {
                         DatePicker(
                             "Select Date",
-                            selection: $selectedDate,
+                            selection: $viewModel.selectedDate,
                             displayedComponents: .date
                         )
                         .datePickerStyle(.graphical)
@@ -77,21 +66,48 @@ struct CalendarView: View {
                         .padding(.horizontal)
                     }
 
+                    // Filter tabs
                     filterTabs
                         .padding(.horizontal)
                         .padding(.top, 16)
                         .padding(.bottom, 12)
 
-                    taskSections
+                    // Content
+                    if viewModel.isLoading {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 40)
+                    } else {
+                        contentSections
+                    }
                 }
             }
             .background(Color(.systemGroupedBackground))
             .navigationBarHidden(true)
-            .sheet(item: $selectedTask) { task in
-                TaskDetailSheet(task: task, namespace: namespace)
-                    .presentationDetents([.fraction(0.45)])
-                    .presentationDragIndicator(.visible)
-                    .presentationBackground(.clear)
+            .task {
+                await viewModel.loadAll()
+            }
+            .sheet(item: $selectedItem) { item in
+                Group {
+                    switch item {
+                    case .task(let task):
+                        TaskDetailSheet(task: task, viewModel: viewModel, namespace: namespace) {
+                            selectedItem = nil
+                            navigateToPlantId = task.userPlantId
+                        }
+                    case .log(let log):
+                        LogDetailSheet(log: log, viewModel: viewModel, namespace: namespace) {
+                            selectedItem = nil
+                            navigateToPlantId = log.userPlantId
+                        }
+                    }
+                }
+                .presentationDetents([.fraction(0.45)])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(.clear)
+            }
+            .navigationDestination(item: $navigateToPlantId) { plantId in
+                PlantDetailView(userPlantId: plantId)
             }
         }
     }
@@ -103,9 +119,7 @@ struct CalendarView: View {
             Text("Calendar")
                 .font(.largeTitle)
                 .fontWeight(.bold)
-
             Spacer()
-
             Circle()
                 .fill(Color.gray.opacity(0.3))
                 .frame(width: 40, height: 40)
@@ -137,37 +151,63 @@ struct CalendarView: View {
         let label = Text(filters[index])
             .font(.system(size: 14, weight: .medium))
 
-        if selectedFilter == index {
+        if viewModel.selectedFilter == index {
             Button {
-                withAnimation(.easeInOut(duration: 0.2)) { selectedFilter = index }
+                withAnimation(.easeInOut(duration: 0.2)) { viewModel.selectedFilter = index }
             } label: { label }
             .buttonStyle(.glassProminent)
             .tint(.mint)
         } else {
             Button {
-                withAnimation(.easeInOut(duration: 0.2)) { selectedFilter = index }
+                withAnimation(.easeInOut(duration: 0.2)) { viewModel.selectedFilter = index }
             } label: { label }
             .buttonStyle(.glass)
             .tint(.black)
         }
     }
 
-    // MARK: - Task Sections
+    // MARK: - Content Sections (Tasks + Logs)
 
-    private var taskSections: some View {
+    private var contentSections: some View {
         VStack(alignment: .leading, spacing: 16) {
-            if selectedFilter == 0 || selectedFilter == 1 {
-                sectionBlock(title: "WATERING", tasks: wateringTasks)
+            let showWatering = viewModel.selectedFilter == 0 || viewModel.selectedFilter == 1
+            let showFeeding = viewModel.selectedFilter == 0 || viewModel.selectedFilter == 2
+
+            if showWatering && !viewModel.wateringTasks.isEmpty {
+                taskSectionBlock(title: "WATERING", tasks: viewModel.wateringTasks)
             }
-            if selectedFilter == 0 || selectedFilter == 2 {
-                sectionBlock(title: "FEEDING", tasks: feedingTasks)
+            if showFeeding && !viewModel.feedingTasks.isEmpty {
+                taskSectionBlock(title: "FEEDING", tasks: viewModel.feedingTasks)
             }
+
+            if viewModel.hasLogs {
+                let filteredLogs: [CareLogItem] = {
+                    if showWatering && showFeeding { return viewModel.wateringLogs + viewModel.feedingLogs }
+                    if showWatering { return viewModel.wateringLogs }
+                    if showFeeding { return viewModel.feedingLogs }
+                    return []
+                }()
+
+                if !filteredLogs.isEmpty {
+                    logSectionBlock(title: "CARE RECORDS", logs: filteredLogs)
+                }
+            }
+
+            if !viewModel.hasTasks && !viewModel.hasLogs {
+                Text("No tasks or records for this date")
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 40)
+            }
+
             Spacer(minLength: 40)
         }
         .padding(.horizontal)
     }
 
-    private func sectionBlock(title: String, tasks: [StaticTask]) -> some View {
+    // MARK: - Task Section Block
+
+    private func taskSectionBlock(title: String, tasks: [CareTaskItem]) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(.footnote)
@@ -177,18 +217,14 @@ struct CalendarView: View {
             VStack(spacing: 0) {
                 ForEach(Array(tasks.enumerated()), id: \.element.id) { index, task in
                     Button {
-                        withAnimation(.spring(duration: 0.25, bounce: 0.15)) {
-                            selectedTask = task
-                        }
+                        selectedItem = .task(task)
                     } label: {
                         taskRow(task)
                     }
                     .buttonStyle(.plain)
 
                     if index < tasks.count - 1 {
-                        Divider()
-                            .padding(.leading, 16)
-                            .padding(.trailing, 16)
+                        Divider().padding(.horizontal, 16)
                     }
                 }
             }
@@ -197,19 +233,78 @@ struct CalendarView: View {
         }
     }
 
-    private func taskRow(_ task: StaticTask) -> some View {
+    private func taskRow(_ task: CareTaskItem) -> some View {
         HStack(spacing: 12) {
             RoundedRectangle(cornerRadius: 2)
                 .fill(task.isWatering ? Color.blue : Color.orange)
                 .frame(width: 4, height: 28)
 
-            Text(task.plantName)
+            Text(task.plantNickname ?? "Plant")
                 .font(.system(size: 16))
 
             Text("·")
                 .foregroundColor(.secondary)
 
-            Text(task.detail)
+            Text(viewModel.taskDetail(task))
+                .font(.system(size: 15))
+                .foregroundColor(.secondary)
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(Color(.tertiaryLabel))
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 12)
+        .contentShape(Rectangle())
+    }
+
+    // MARK: - Log Section Block
+
+    private func logSectionBlock(title: String, logs: [CareLogItem]) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.footnote)
+                .foregroundColor(.secondary)
+                .padding(.leading, 16)
+
+            VStack(spacing: 0) {
+                ForEach(Array(logs.enumerated()), id: \.element.id) { index, log in
+                    Button {
+                        selectedItem = .log(log)
+                    } label: {
+                        logRow(log)
+                    }
+                    .buttonStyle(.plain)
+
+                    if index < logs.count - 1 {
+                        Divider().padding(.horizontal, 16)
+                    }
+                }
+            }
+            .background(Color(.systemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 24))
+        }
+    }
+
+    private func logRow(_ log: CareLogItem) -> some View {
+        HStack(spacing: 12) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(log.isWatering ? Color.blue : Color.orange)
+                .frame(width: 4, height: 28)
+
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 14))
+                .foregroundColor(.green)
+
+            Text(log.plantNickname ?? "Plant")
+                .font(.system(size: 16))
+
+            Text("·")
+                .foregroundColor(.secondary)
+
+            Text(viewModel.logDetail(log))
                 .font(.system(size: 15))
                 .foregroundColor(.secondary)
 
@@ -228,122 +323,233 @@ struct CalendarView: View {
 // MARK: - Task Detail Sheet
 
 private struct TaskDetailSheet: View {
-    let task: StaticTask
+    let task: CareTaskItem
+    let viewModel: CalendarViewModel
     let namespace: Namespace.ID
+    let onDetailTap: () -> Void
 
     var body: some View {
-        ZStack {
+        VStack(alignment: .leading, spacing: 12) {
 
-            VStack(alignment: .leading, spacing: 12) {
+            Spacer().frame(height: 24)
 
-                Spacer().frame(height: 24)
+            // Plant info
+            HStack(spacing: 12) {
+                // DEMO: local image rotated by plant ID
+                Image(DemoPlantImage.name(for: task.userPlantId))
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 50, height: 50)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
 
-                VStack(alignment: .leading, spacing: 0) {
-                    HStack(spacing: 12) {
-                        if let name = task.plantImageName {
-                            Image(name)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 50, height: 50)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                        } else {
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.green.opacity(0.12))
-                                .frame(width: 50, height: 50)
-                                .overlay(
-                                    Image(systemName: "leaf.fill")
-                                        .font(.system(size: 20))
-                                        .foregroundColor(.green.opacity(0.4))
-                                )
-                        }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(task.plantNickname ?? "Plant")
+                        .font(.system(size: 17, weight: .semibold))
 
-                        
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(task.plantName)
-                                .font(.system(size: 17, weight: .semibold))
-                            Text(task.scientificName)
-                                .font(.system(size: 13))
-                                .foregroundColor(.secondary)
-                                .italic()
-                        }
-
-                        Spacer()
-
-                        HStack(spacing: 4) {
-                            Text("Detail")
-                                .font(.system(size: 14))
-                                .foregroundColor(.secondary)
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(Color(.tertiaryLabel))
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 12)
-                    .padding(.bottom, 14)
+                    Text(task.plantLocation ?? "—")
+                        .font(.system(size: 13))
+                        .foregroundColor(.secondary)
                 }
-                .background(
-                    RoundedRectangle(cornerRadius: 32, style: .continuous)
-                        .fill(Color.white.opacity(0.8))
-                )
-                .padding(.horizontal, 12)
 
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Text(task.isWatering ? "Watering" : "Feeding")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(task.isWatering ? .blue : .orange)
+                Spacer()
 
-                        Spacer()
-
-                        Text(task.date)
+                Button {
+                    onDetailTap()
+                } label: {
+                    HStack(spacing: 4) {
+                        Text("Detail")
                             .font(.system(size: 14))
                             .foregroundColor(.secondary)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(Color(.tertiaryLabel))
                     }
-
-                    Text(task.amount)
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary)
-
-                    if let name = task.recordImageName {
-                        Image(name)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 100, height: 100)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                    } else {
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.white.opacity(1))
-                            .frame(width: 100, height: 100)
-                            .overlay(
-                                Image(systemName: "photo")
-                                    .font(.system(size: 32))
-                                    .foregroundColor(.green.opacity(0.35))
-                            )
-                    }
-
-                    Text("\"\(task.note)\"")
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary)
-                        .italic()
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 32, style: .continuous)
-                            .fill(Color.white.opacity(0.8))
-                    )
-                    .padding(.horizontal, 12)
-
-                    Spacer(minLength: 8)
                 }
-                .padding(.horizontal, 12)
-                .padding(.bottom, 6)
+                .buttonStyle(.plain)
             }
+            .padding(.horizontal, 8)
+
+            // Task detail card
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text(task.careTypeDisplay)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(task.isWatering ? .blue : .orange)
+
+                    Spacer()
+
+                    Text(task.scheduledDate)
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                }
+
+                Text(taskAmount)
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+
+                Text("Status: \(task.status)")
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+                    .italic()
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 28)
+                    .fill(Color.white.opacity(0.8))
+            )
+            .padding(.horizontal, 4)
+
+            // Action buttons
+            HStack(spacing: 12) {
+                Button {
+                    Task { await viewModel.completeTask(task) }
+                } label: {
+                    Text("Complete")
+                        .font(.system(size: 15, weight: .semibold))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 36)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.mint)
+
+                Button {
+                    Task { await viewModel.skipTask(task) }
+                } label: {
+                    Text("Skip")
+                        .font(.system(size: 15, weight: .semibold))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 36)
+                }
+                .buttonStyle(.bordered)
+            }
+            .padding(.horizontal, 12)
+
+            Spacer(minLength: 8)
+        }
+        .padding(.horizontal, 12)
+        .padding(.bottom, 6)
         .ignoresSafeArea(edges: .bottom)
         .glassEffectID("detailCard", in: namespace)
     }
+
+    private var taskAmount: String {
+        if task.isWatering {
+            return task.displayedWaterAmountMl.map { "\($0) ml" } ?? "Water"
+        } else {
+            return task.feedingType ?? "Fertilizer"
+        }
+    }
+}
+
+// MARK: - Log Detail Sheet
+
+private struct LogDetailSheet: View {
+    let log: CareLogItem
+    let viewModel: CalendarViewModel
+    let namespace: Namespace.ID
+    let onDetailTap: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+
+            Spacer().frame(height: 24)
+
+            // Plant info
+            HStack(spacing: 12) {
+                // DEMO: local image rotated by plant ID
+                Image(DemoPlantImage.name(for: log.userPlantId ?? 0))
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 50, height: 50)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(log.plantNickname ?? "Plant")
+                        .font(.system(size: 17, weight: .semibold))
+
+                    Text(log.plantLocation ?? "—")
+                        .font(.system(size: 13))
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                Button {
+                    onDetailTap()
+                } label: {
+                    HStack(spacing: 4) {
+                        Text("Detail")
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(Color(.tertiaryLabel))
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 8)
+
+            // Log detail card
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text(log.careTypeDisplay)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(log.isWatering ? .blue : .orange)
+
+                    Spacer()
+
+                    Text(viewModel.logDate(log))
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                }
+
+                Text(viewModel.logDetail(log))
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+
+                // DEMO: local image for care log
+                Image("IMG_2415")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 100, height: 100)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                if let notes = log.notes, !notes.isEmpty {
+                    Text("\"\(notes)\"")
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                        .italic()
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 28)
+                    .fill(Color.white.opacity(0.8))
+            )
+            .padding(.horizontal, 4)
+
+            Spacer(minLength: 8)
+        }
+        .padding(.horizontal, 12)
+        .padding(.bottom, 6)
+        .ignoresSafeArea(edges: .bottom)
+        .glassEffectID("logDetailCard", in: namespace)
+    }
+}
+
+// Make CareTaskItem work with sheet(item:)
+extension CareTaskItem: Equatable {
+    public static func == (lhs: CareTaskItem, rhs: CareTaskItem) -> Bool {
+        lhs.id == rhs.id
+    }
+}
+
+// Make Int64 work with navigationDestination(item:)
+extension Int64: @retroactive Identifiable {
+    public var id: Int64 { self }
 }
 
 #Preview {

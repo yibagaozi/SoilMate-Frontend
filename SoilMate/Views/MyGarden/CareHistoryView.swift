@@ -7,88 +7,33 @@
 
 import SwiftUI
 
-// MARK: - Static Care Record
-
-private struct CareRecord: Identifiable {
-    let id = UUID()
-    let type: CareType
-    let detail: String
-    let date: String
-    let month: Int      // for filtering
-    let year: Int       // for filtering
-    let note: String?
-    let imageName: String?
-
-    enum CareType {
-        case watering, feeding
-
-        var label: String {
-            switch self {
-            case .watering: return "Watering"
-            case .feeding: return "Feeding"
-            }
-        }
-
-        var color: Color {
-            switch self {
-            case .watering: return .blue
-            case .feeding: return .orange
-            }
-        }
-    }
-}
-
-private let allRecords: [CareRecord] = [
-    CareRecord(type: .watering, detail: "200 ml", date: "Dec 25, 2025",
-               month: 12, year: 2025, note: "Leaves looking healthy after watering",
-               imageName: "IMG_2415"),
-    CareRecord(type: .feeding, detail: "General fertilizer", date: "Dec 11, 2025",
-               month: 12, year: 2025, note: nil,
-               imageName: "IMG_2415"),
-    CareRecord(type: .watering, detail: "200 ml", date: "Dec 11, 2025",
-               month: 12, year: 2025, note: "Leaves looking good after watering",
-               imageName: "IMG_2415"),
-    CareRecord(type: .watering, detail: "200 ml", date: "Nov 28, 2025",
-               month: 11, year: 2025, note: nil,
-               imageName: "IMG_2415"),
-    CareRecord(type: .feeding, detail: "Liquid fertilizer", date: "Nov 15, 2025",
-               month: 11, year: 2025, note: "Applied half-strength",
-               imageName: "IMG_2415"),
-    CareRecord(type: .watering, detail: "150 ml", date: "Oct 20, 2025",
-               month: 10, year: 2025, note: "Soil was very dry",
-               imageName: "IMG_2415"),
-]
-
-// MARK: - Care History View
-
 struct CareHistoryView: View {
 
-    @State private var selectedYear = 2025
-    @State private var selectedMonth = 12
+    let userPlantId: Int64
 
-    private let years = [2024, 2025, 2026]
-    private let months = Calendar.current.monthSymbols   // ["January", ..., "December"]
+    @State private var viewModel: CareHistoryViewModel
 
-    /// Filtered records by selected year & month
-    private var filteredRecords: [CareRecord] {
-        allRecords.filter { $0.year == selectedYear && $0.month == selectedMonth }
+    private let months = Calendar.current.monthSymbols
+    private let years = Array(2024...2026)
+
+    init(userPlantId: Int64) {
+        self.userPlantId = userPlantId
+        self._viewModel = State(initialValue: CareHistoryViewModel(userPlantId: userPlantId))
     }
 
     var body: some View {
         List {
-            // ── Year / Month Filter ──
+            // MARK: - Year / Month Filter
             Section {
                 HStack {
-                
-
                     // Month picker
                     Menu {
                         ForEach(1...12, id: \.self) { m in
-                            Button(months[m - 1]) { selectedMonth = m }
+                            Button(months[m - 1]) { viewModel.selectedMonth = m }
                         }
                     } label: {
                         HStack(spacing: 4) {
-                            Text(months[selectedMonth - 1])
+                            Text(months[viewModel.selectedMonth - 1])
                                 .font(.system(size: 16, weight: .medium))
                                 .foregroundColor(.primary)
                             Image(systemName: "chevron.up.chevron.down")
@@ -100,15 +45,15 @@ struct CareHistoryView: View {
                         .background(Color(.tertiarySystemFill))
                         .clipShape(Capsule())
                     }
-                    
+
                     // Year picker
                     Menu {
                         ForEach(years, id: \.self) { year in
-                            Button(String(year)) { selectedYear = year }
+                            Button(String(year)) { viewModel.selectedYear = year }
                         }
                     } label: {
                         HStack(spacing: 4) {
-                            Text(String(selectedYear))
+                            Text(String(viewModel.selectedYear))
                                 .font(.system(size: 16, weight: .medium))
                                 .foregroundColor(.primary)
                             Image(systemName: "chevron.up.chevron.down")
@@ -128,16 +73,20 @@ struct CareHistoryView: View {
                 .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
             }
 
-            // ── Care Records ──
+            // MARK: - Care Records
             Section {
-                if filteredRecords.isEmpty {
+                if viewModel.isLoading {
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 40)
+                } else if viewModel.logs.isEmpty {
                     Text("No records for this month")
                         .foregroundColor(.secondary)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.vertical, 40)
                 } else {
-                    ForEach(filteredRecords) { record in
-                        recordCard(record)
+                    ForEach(viewModel.logs) { log in
+                        recordCard(log)
                     }
                 }
             }
@@ -147,51 +96,43 @@ struct CareHistoryView: View {
         .navigationTitle("Care History")
         .navigationBarTitleDisplayMode(.inline)
         .padding(.top, -30)
+        .task {
+            await viewModel.loadLogs()
+        }
     }
 
     // MARK: - Record Card
 
-    private func recordCard(_ record: CareRecord) -> some View {
+    private func recordCard(_ log: CareLogItem) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-
             // Type + Date
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(record.type.label)
+                    Text(log.isWatering ? "Watering" : "Feeding")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(record.type.color)
-                    Text(record.detail)
+                        .foregroundColor(log.isWatering ? .blue : .orange)
+
+                    Text(viewModel.detailText(log))
                         .font(.system(size: 14))
                         .foregroundColor(.secondary)
                 }
 
                 Spacer()
 
-                Text(record.date)
+                Text(viewModel.displayDate(log))
                     .font(.system(size: 14))
                     .foregroundColor(.secondary)
             }
 
-            // Photo placeholder
-            if let imageName = record.imageName {
-                Image(imageName)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 120, height: 120)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-            } else {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.green.opacity(0.10))
-                    .frame(width: 120, height: 120)
-                    .overlay(
-                        Image(systemName: "photo")
-                            .font(.system(size: 24))
-                            .foregroundColor(.green.opacity(0.3))
-                    )
-            }
+            // DEMO: local image for all care records
+            Image("IMG_2415")
+                .resizable()
+                .scaledToFill()
+                .frame(width: 120, height: 120)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
 
-            // Note (if present)
-            if let note = record.note {
+            // Note
+            if let note = log.notes, !note.isEmpty {
                 Text("\"\(note)\"")
                     .font(.system(size: 14))
                     .foregroundColor(.secondary)
@@ -202,10 +143,8 @@ struct CareHistoryView: View {
     }
 }
 
-// MARK: - Preview
-
 #Preview {
     NavigationStack {
-        CareHistoryView()
+        CareHistoryView(userPlantId: 1)
     }
 }

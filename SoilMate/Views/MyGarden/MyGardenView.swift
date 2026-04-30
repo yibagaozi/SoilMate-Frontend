@@ -7,33 +7,10 @@
 
 import SwiftUI
 
-private struct StaticPlant: Identifiable {
-    let id: Int
-    let name: String
-    let location: String
-    let imageName: String
-    let statusText: String
-    let statusColor: Color
-}
-
-private let staticPlants: [StaticPlant] = [
-    StaticPlant(id: 1, name: "Snake Plant", location: "Living Room",
-                imageName: "IMG_2411", statusText: "Tomorrow", statusColor: .orange),
-    StaticPlant(id: 2, name: "Spider Plant", location: "Bedroom",
-                imageName: "IMG_2414", statusText: "Today", statusColor: .blue),
-    StaticPlant(id: 3, name: "Succulent", location: "Balcony",
-                imageName: "IMG_2412", statusText: "In 6 Days", statusColor: .mint),
-    StaticPlant(id: 4, name: "Monstera", location: "Office",
-                imageName: "IMG_2413", statusText: "Overdue", statusColor: .red),
-]
-
 struct MyGardenView: View {
-    @State private var showEmpty = false
-    @State private var showAddPlant = false
 
-    init(showEmpty: Bool = false) {
-        _showEmpty = State(initialValue: showEmpty)
-    }
+    @State private var viewModel = MyGardenViewModel()
+    @State private var showAddPlant = false
 
     private let columns = [
         GridItem(.flexible(), spacing: 14),
@@ -47,7 +24,11 @@ struct MyGardenView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     header
 
-                    if showEmpty {
+                    if viewModel.isLoading {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 100)
+                    } else if viewModel.isEmpty {
                         emptyState
                     } else {
                         plantGrid
@@ -57,22 +38,31 @@ struct MyGardenView: View {
             }
             .background(Color(.systemGroupedBackground))
             .navigationBarHidden(true)
-
             .overlay(alignment: .bottomTrailing) {
                 addButton
                     .padding(.trailing, 20)
                     .padding(.bottom, 16)
             }
-            
             .sheet(isPresented: $showAddPlant) {
                 AddPlantView()
+            }
+            // Reload after adding a new plant
+            .onChange(of: showAddPlant) { _, isPresented in
+                if !isPresented {
+                    Task { await viewModel.load() }
+                }
+            }
+            .task {
+                await viewModel.load()
             }
         }
     }
 
+    // MARK: - Header
+
     private var header: some View {
         HStack(alignment: .center) {
-            Text("Rachel's Garden")
+            Text("My Garden")
                 .font(.largeTitle)
                 .fontWeight(.bold)
 
@@ -93,6 +83,8 @@ struct MyGardenView: View {
         .frame(height: headerHeight, alignment: .center)
     }
 
+    // MARK: - Empty State
+
     private var emptyState: some View {
         VStack(spacing: 8) {
             Spacer(minLength: 300)
@@ -107,22 +99,28 @@ struct MyGardenView: View {
         .frame(maxWidth: .infinity)
     }
 
+    // MARK: - Plant Grid
+
     private var plantGrid: some View {
-            LazyVGrid(columns: columns, spacing: 14) {
-                ForEach(staticPlants) { plant in
-                    // Navigate to plant detail on tap
-                    NavigationLink {
-                        PlantDetailView()
-                    } label: {
-                        PlantCard(plant: plant)
-                    }
-                    .buttonStyle(.plain)
+        LazyVGrid(columns: columns, spacing: 14) {
+            ForEach(viewModel.plants) { plant in
+                NavigationLink {
+                    PlantDetailView(userPlantId: plant.id)
+                } label: {
+                    PlantCard(
+                        plant: plant,
+                        status: viewModel.nextCareStatus(plant)
+                    )
                 }
+                .buttonStyle(.plain)
             }
-            .padding(.horizontal, 18)
-            .padding(.top, 8)
-            .padding(.bottom, 80)
         }
+        .padding(.horizontal, 18)
+        .padding(.top, 8)
+        .padding(.bottom, 80)
+    }
+
+    // MARK: - Add Button
 
     private var addButton: some View {
         Button(action: { showAddPlant = true }) {
@@ -136,36 +134,51 @@ struct MyGardenView: View {
     }
 }
 
+// MARK: - Demo Image Helper
+
+/// DEMO ONLY - rotates local images IMG_2411...IMG_2414 by plant ID.
+/// Used as a fallback when a plant has no user-supplied photo.
+enum DemoPlantImage {
+    static func name(for plantId: Int64) -> String {
+        let index = Int(abs(plantId) % 4) + 1
+        return "IMG_241\(index)"  // IMG_2411, IMG_2412, IMG_2413, IMG_2414
+    }
+}
+
+// MARK: - Plant Card
+
 private struct PlantCard: View {
-    let plant: StaticPlant
+    let plant: UserPlantDetail
+    let status: MyGardenViewModel.CareStatus
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.green.opacity(0.12))
-                .aspectRatio(1, contentMode: .fit)
-                .frame(maxWidth: 100)
-                .overlay(
-                    Image(plant.imageName)
-                        .resizable()
-                        .scaledToFill()
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+            // Plant image - square, adapts to card width
+            GeometryReader { geo in
+                LocalPhotoView(
+                    photoUrl: plant.photoUrl,
+                    fallbackImageName: DemoPlantImage.name(for: plant.id)
                 )
-                .padding(.horizontal, 12)
-                .padding(.top, 12)
+                .frame(width: geo.size.width, height: geo.size.width)
+                .clipped()
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+            .aspectRatio(1, contentMode: .fit)
+            .padding(.horizontal, 12)
+            .padding(.top, 12)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(plant.name)
+                Text(plant.nickname ?? plant.plantName ?? "Plant")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(.primary)
 
-                Text(plant.location)
+                Text(plant.location ?? "")
                     .font(.system(size: 12))
                     .foregroundColor(.gray)
 
-                Text(plant.statusText)
+                Text(status.text)
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(plant.statusColor)
+                    .foregroundColor(status.color)
                     .padding(.top, 2)
             }
             .padding(.horizontal, 12)
@@ -177,10 +190,7 @@ private struct PlantCard: View {
     }
 }
 
-#Preview("Garden with Cards") {
-    MyGardenView(showEmpty: false)
-}
 
-#Preview("Empty Garden") {
-    MyGardenView(showEmpty: true)
+#Preview {
+    MyGardenView()
 }

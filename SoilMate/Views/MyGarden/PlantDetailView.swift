@@ -9,107 +9,140 @@ import SwiftUI
 
 struct PlantDetailView: View {
 
+    let userPlantId: Int64
+
     @Environment(\.dismiss) private var dismiss
+    @State private var viewModel: PlantDetailViewModel
     @State private var showDeleteConfirm = false
     @State private var showEditPlant = false
 
+    init(userPlantId: Int64) {
+        self.userPlantId = userPlantId
+        self._viewModel = State(initialValue: PlantDetailViewModel(userPlantId: userPlantId))
+    }
+
     var body: some View {
-        //NavigationStack {
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 16) {
-
-                    // MARK: Plant Photo
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(Color.green.opacity(0.12))
-                        .frame(width: 160, height: 160)
-                        .overlay(
-                            Image("IMG_2411")
-                                .resizable()
-                                .scaledToFill()
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                        )
-                        .padding(.horizontal)
-
-                    // MARK: Name
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("MySnakePlant")
-                            .font(.system(size: 30, weight: .bold))
-
-                        Text("Snake Plant · Sansevieria trifasciata")
-                            .font(.system(size: 16))
-                            .foregroundColor(.secondary)
-                            .italic()
-                    }
-                    .padding(.horizontal)
-
-                    // MARK: Watering + Feeding
-                    HStack(alignment: .top, spacing: 12) {
-                        wateringCard
-                        feedingCard
-                    }
-                    .padding(.horizontal)
-
-                    // MARK: Below
-                    HStack(alignment: .top, spacing: 12) {
-
-                        VStack(spacing: 12) {
-                            infoCard(title: "Light", value: "Flexible")
-                            infoCard(title: "Environment", value: "Indoor · Medium Pot")
-                            infoCard(title: "Location", value: "Living Room")
-                        }
-
-                        historyCard
-                    }
-                    .padding(.horizontal)
-
-                    Spacer(minLength: 20)
-                }
-                .padding(.top, 8)
+        Group {
+            if viewModel.isLoading {
+                ProgressView("Loading...")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let _ = viewModel.plant {
+                detailContent
+            } else {
+                Text(viewModel.errorMessage ?? "Plant not found")
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle("Plant Detail Information")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        Button {
-                            showEditPlant = true
-                        } label: {
-                            Label("Edit Plant Information", systemImage: "square.and.pencil")
-                                .foregroundStyle(.primary)
-                        }
-
-                        Button(role: .destructive) {
-                            showDeleteConfirm = true
-                        } label: {
-                            Label("Delete Plant", systemImage: "trash")
-                                .foregroundStyle(.red)
-                        }
-
+        }
+        .background(Color(.systemGroupedBackground))
+        .navigationTitle("Plant Detail Information")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Menu {
+                    Button {
+                        showEditPlant = true
                     } label: {
-                        Image(systemName: "square.on.square")
-                            .foregroundColor(.primary)
+                        Label("Edit Plant Information", systemImage: "square.and.pencil")
+                            .foregroundStyle(.primary)
                     }
-                    .tint(nil)
+
+                    Button(role: .destructive) {
+                        showDeleteConfirm = true
+                    } label: {
+                        Label("Delete Plant", systemImage: "trash")
+                            .foregroundStyle(.red)
+                    }
+                } label: {
+                    Image(systemName: "square.on.square")
+                        .foregroundColor(.primary)
                 }
+                .tint(nil)
             }
-            .alert(
-                "Do you want to delete it?",
-                isPresented: $showDeleteConfirm
-            ) {
-                Button("Delete", role: .destructive) {
-                    dismiss()
+        }
+        .alert(
+            "Do you want to delete it?",
+            isPresented: $showDeleteConfirm
+        ) {
+            Button("Delete", role: .destructive) {
+                Task { await viewModel.deletePlant() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Your plant \(viewModel.displayName) will be deleted permanently.")
+        }
+        .toolbar(.hidden, for: .tabBar)
+        .navigationDestination(isPresented: $showEditPlant) {
+            EditPlantView(userPlantId: userPlantId)
+        }
+        .onChange(of: viewModel.didDelete) { _, deleted in
+            if deleted { dismiss() }
+        }
+        .onChange(of: showEditPlant) { _, showing in
+            if !showing { Task { await viewModel.load() } }
+        }
+        .task {
+            await viewModel.load()
+        }
+    }
+
+    // MARK: - Detail Content
+
+    private var detailContent: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 16) {
+
+                // MARK: Plant Photo
+                plantPhoto
+                    .padding(.horizontal)
+
+                // MARK: Name
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(viewModel.displayName)
+                        .font(.system(size: 30, weight: .bold))
+
+                    Text(viewModel.scientificLabel)
+                        .font(.system(size: 16))
+                        .foregroundColor(.secondary)
+                        .italic()
                 }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("Your plant MySnakePlant will be deleted permanently.")
+                .padding(.horizontal)
+
+                // MARK: Watering + Feeding
+                HStack(alignment: .top, spacing: 12) {
+                    wateringCard
+                    feedingCard
+                }
+                .padding(.horizontal)
+
+                // MARK: Info + History
+                HStack(alignment: .top, spacing: 12) {
+
+                    VStack(spacing: 12) {
+                        infoCard(title: "Light", value: viewModel.sunlightText)
+                        infoCard(title: "Environment", value: "Indoor · Medium Pot")
+                        infoCard(title: "Location", value: viewModel.locationText)
+                    }
+
+                    historyCard
+                }
+                .padding(.horizontal)
+
+                Spacer(minLength: 20)
             }
-            .toolbar(.hidden, for: .tabBar)
-            .navigationDestination(isPresented: $showEditPlant) {
-                EditPlantView()
-            }
-        //}
+            .padding(.top, 8)
+        }
+    }
+
+    // MARK: - Plant Photo
+
+    private var plantPhoto: some View {
+        LocalPhotoView(
+            photoUrl: viewModel.plant?.photoUrl,
+            fallbackImageName: DemoPlantImage.name(for: userPlantId)
+        )
+        .frame(width: 160, height: 160)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 
     // MARK: - Watering Card
@@ -118,25 +151,21 @@ struct PlantDetailView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Watering")
                 .font(.system(size: 20, weight: .bold))
-            
+
             Text("Water until it drains from the bottom")
                 .font(.system(size: 15))
                 .foregroundColor(.secondary)
 
-            Text("Every 3 Days · 200ml")
+            Text(viewModel.wateringScheduleText)
                 .font(.system(size: 15))
                 .foregroundColor(.secondary)
-
-            //Text("200ml")
-            //    .font(.system(size: 15))
-             //   .foregroundColor(.secondary)
 
             Spacer(minLength: 14)
 
             Text("Next:")
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundColor(.blue)
-            Text("Tomorrow 8:00 AM")
+            Text(viewModel.nextWateringDateText)
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundColor(.blue)
             Spacer(minLength: 4)
@@ -153,11 +182,11 @@ struct PlantDetailView: View {
             Text("Feeding")
                 .font(.system(size: 20, weight: .bold))
 
-            Text("Every 60 Days")
+            Text(viewModel.feedingScheduleText)
                 .font(.system(size: 15))
                 .foregroundColor(.secondary)
 
-            Text("General fertilizer")
+            Text(viewModel.feedingTypeText)
                 .font(.system(size: 15))
                 .foregroundColor(.secondary)
 
@@ -166,7 +195,7 @@ struct PlantDetailView: View {
             Text("Next:")
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundColor(.orange)
-            Text("January 1, 2026")
+            Text(viewModel.nextFeedingDateText)
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundColor(.orange)
             Spacer(minLength: 4)
@@ -176,7 +205,7 @@ struct PlantDetailView: View {
         .glassEffect(.regular, in: .rect(cornerRadius: 30))
     }
 
-    // MARK: - Info Card (Light / Notification / Location)
+    // MARK: - Info Card
 
     private func infoCard(title: String, value: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -195,15 +224,14 @@ struct PlantDetailView: View {
 
     private var historyCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            // Header
-            HStack (alignment: .top){
+            HStack(alignment: .top) {
                 Text("History")
                     .font(.system(size: 20, weight: .bold))
 
                 Spacer()
 
                 NavigationLink {
-                    CareHistoryView()
+                    CareHistoryView(userPlantId: userPlantId)
                 } label: {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 15, weight: .bold))
@@ -213,16 +241,21 @@ struct PlantDetailView: View {
                 .buttonStyle(.glassProminent)
                 .tint(.mint)
             }
-            
+
             Spacer(minLength: 1)
 
-            historyItem(type: "Water:", date: "December 10, 2025", color: .blue)
-            Divider()
-            historyItem(type: "Feed:", date: "July 2, 2025", color: .orange)
-            Divider()
-            historyItem(type: "Water:", date: "December 3, 2025", color: .blue)
-            
-            //Spacer(minLength: 0.1)
+            if viewModel.recentLogs.isEmpty {
+                Text("No records yet")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+            } else {
+                ForEach(Array(viewModel.recentLogs.prefix(3).enumerated()), id: \.element.id) { index, log in
+                    historyItem(log)
+                    if index < min(viewModel.recentLogs.count, 3) - 1 {
+                        Divider()
+                    }
+                }
+            }
         }
         .padding(.top, 16)
         .padding(.horizontal, 16)
@@ -231,12 +264,18 @@ struct PlantDetailView: View {
         .glassEffect(.regular, in: .rect(cornerRadius: 30))
     }
 
-    private func historyItem(type: String, date: String, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(type)
+    private func historyItem(_ log: CareLogItem) -> some View {
+        let color: Color = log.isWatering ? .blue : .orange
+        let label = log.isWatering ? "Water:" : "Feed:"
+        let dateText = DateHelper.displayDate(
+            DateHelper.parseDateTime(log.performedAt) ?? Date()
+        )
+
+        return VStack(alignment: .leading, spacing: 2) {
+            Text(label)
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundColor(color)
-            Text(date)
+            Text(dateText)
                 .font(.system(size: 16))
                 .foregroundColor(color)
         }
@@ -246,5 +285,7 @@ struct PlantDetailView: View {
 // MARK: - Preview
 
 #Preview {
-    PlantDetailView()
+    NavigationStack {
+        PlantDetailView(userPlantId: 1)
+    }
 }

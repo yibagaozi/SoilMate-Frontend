@@ -4,255 +4,220 @@
 //
 //  Created by yibagaozi on 2026/2/7.
 //
+
 import SwiftUI
+import PhotosUI
 
 struct EditPlantView: View {
 
+    let userPlantId: Int64
+
     @Environment(\.dismiss) private var dismiss
+    @State private var viewModel: EditPlantViewModel
+    @State private var showSaveSuccess = false
+    @State private var showPotSizeInfo = false
+    @State private var photoItem: PhotosPickerItem?
 
-    // Text fields (editable via UIKit)
-    @State private var officialName = "Sansevieria trifasciata"
-    @State private var commonName = "Snake Plant"
-    @State private var nickname = "MySnakePlant"
-
-    // Pickers
-    @State private var waterFrequency = 3
-    @State private var waterAmount = 200
-    @State private var feedingFrequency = 6
-    @State private var feedingType = "General fertilizer"
-    @State private var lightRequirement = "Flexible"
-    @State private var location = "Living Room"
-    @State private var environment = "Indoor"
-    @State private var enableNotification = true
+    init(userPlantId: Int64) {
+        self.userPlantId = userPlantId
+        self._viewModel = State(initialValue: EditPlantViewModel(userPlantId: userPlantId))
+    }
 
     private let waterFrequencyOptions = [3, 5, 7, 10, 14, 21]
     private let feedingFrequencyOptions = [15, 30, 60, 90, 120]
     private let feedingTypeOptions = ["General fertilizer", "Liquid fertilizer", "Slow-release", "Organic"]
     private let lightOptions = ["Full Sun", "Partial Sun", "Low Light", "Flexible"]
     private let locationOptions = ["Living Room", "Bedroom", "Balcony", "Office", "Kitchen"]
-    private let environmentOptions = ["Indoor", "Outdoor"]
 
     var body: some View {
         List {
-
-            // ── Official Name ──
             Section {
-                Text(officialName)
-            } header: {
-                Text("Official Name")
-            }
+                Text(viewModel.officialName.isEmpty ? "-" : viewModel.officialName)
+            } header: { Text("Official Name") }
 
-            // ── Common Name (display only) ──
             Section {
-                Text(commonName)
-            } header: {
-                Text("Common Name")
-            }
+                Text(viewModel.commonName.isEmpty ? "-" : viewModel.commonName)
+            } header: { Text("Common Name") }
 
-            // ── Nickname (editable, native SwiftUI) ──
             Section {
-                //TextField("Nickname", text: $nickname)
-                UIKitTextField(text: $nickname, placeholder: "Nickname")
-            } header: {
-                Text("Nickname")
-            }
+                UIKitTextField(text: $viewModel.nickname, placeholder: "Nickname")
+            } header: { Text("Nickname") }
 
-            // ── Care Settings ──
             Section {
-                // Water Frequency
+                // Pot Size
                 HStack {
-                    Text("Water Frequency")
-                    Spacer()
-                    Menu {
-                        ForEach(waterFrequencyOptions, id: \.self) { days in
-                            Button("\(days) Days") { waterFrequency = days }
-                        }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text("\(waterFrequency) Days")
-                                .foregroundColor(.secondary)
-                            Image(systemName: "chevron.up.chevron.down")
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundColor(Color(.tertiaryLabel))
-                        }
-                    }
-                }
-
-                // Water Amount
-                HStack {
-                    Text("Water Amount")
-                    Spacer()
-                    HStack(spacing: 0) {
-                        Button {
-                            if waterAmount > 50 { waterAmount -= 50 }
-                        } label: {
-                            Image(systemName: "minus")
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(.primary)
-                                .frame(width: 32, height: 32)
-                        }
-                        .buttonStyle(.plain)
-
-                        Divider().frame(height: 20)
-
-                        Text("\(waterAmount) ml")
-                            .font(.system(size: 15))
-                            .foregroundColor(.secondary)
-                            .frame(minWidth: 60)
-
-                        Divider().frame(height: 20)
-
-                        Button {
-                            waterAmount += 50
-                        } label: {
-                            Image(systemName: "plus")
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(.primary)
-                                .frame(width: 32, height: 32)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .background(Color(.tertiarySystemFill))
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                }
-
-                // Feeding Frequency
-                HStack {
-                    Text("Feeding Frequency")
-                    Spacer()
-                    Menu {
-                        ForEach(feedingFrequencyOptions, id: \.self) { months in
-                            Button("\(months) Days") { feedingFrequency = months }
-                        }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text("\(feedingFrequency) Days")
-                                .foregroundColor(.secondary)
-                            Image(systemName: "chevron.up.chevron.down")
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundColor(Color(.tertiaryLabel))
-                        }
-                    }
-                }
-
-                // Feeding Type
-                HStack {
-                    Text("Feeding Type")
-                    Spacer()
-                    Menu {
-                        ForEach(feedingTypeOptions, id: \.self) { type in
-                            Button(type) { feedingType = type }
-                        }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text(feedingType)
-                                .foregroundColor(.secondary)
-                            Image(systemName: "chevron.up.chevron.down")
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundColor(Color(.tertiaryLabel))
-                        }
-                    }
-                }
-
-                // Light Requirements
-                HStack {
-                    Text("Light Requirements")
-                    Spacer()
-                    Menu {
-                        ForEach(lightOptions, id: \.self) { option in
-                            Button(option) { lightRequirement = option }
-                        }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text(lightRequirement)
-                                .foregroundColor(.secondary)
-                            Image(systemName: "chevron.up.chevron.down")
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundColor(Color(.tertiaryLabel))
-                        }
-                    }
-                }
-            }
-            .listSectionSpacing(20)
-
-            // ── Photo / Location / Notification ──
-            Section {
-                // Change Photo
-                HStack {
-                    Text("Change Photo")
-                    Spacer()
                     HStack(spacing: 4) {
-                        Text("Select")
-                            .foregroundColor(.secondary)
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(Color(.tertiaryLabel))
+                        Text("Pot Size")
+                        Button {
+                            showPotSizeInfo = true
+                        } label: {
+                            Image(systemName: "info.circle")
+                                .font(.system(size: 14))
+                                .foregroundColor(Color(.tertiaryLabel))
+                        }
+                        .buttonStyle(.plain)
+                        .popover(isPresented: $showPotSizeInfo, arrowEdge: .bottom) {
+                            PotSizeInfoPopover(selectedSize: viewModel.potSize)
+                        }
+                    }
+                    Spacer()
+                    PotSizeSelector(selection: $viewModel.potSize)
+                }
+
+                HStack {
+                    Text("Environment")
+                    Spacer()
+                    Menu {
+                        ForEach(GrowingEnvironment.allCases, id: \.self) { env in
+                            Button(env.displayLabel) { viewModel.environment = env }
+                        }
+                    } label: {
+                        menuLabel(viewModel.environment.displayLabel)
                     }
                 }
 
-                // Location
                 HStack {
                     Text("Location")
                     Spacer()
                     Menu {
                         ForEach(locationOptions, id: \.self) { loc in
-                            Button(loc) { location = loc }
+                            Button(loc) { viewModel.location = loc }
                         }
-                        Button("Custom…") {
-                            presentCustomLocationAlert()
-                        }
+                        Button("Custom...") { presentCustomLocationAlert() }
                     } label: {
-                        HStack(spacing: 4) {
-                            Text(location)
-                                .foregroundColor(.secondary)
-                            Image(systemName: "chevron.up.chevron.down")
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundColor(Color(.tertiaryLabel))
-                        }
-                    }
-                }
-                
-                // Environment
-                HStack {
-                    Text("Environment")
-                    Spacer()
-                    Menu {
-                        ForEach(environmentOptions, id: \.self) { loc in
-                            Button(loc) { environment = loc }
-                        }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text(environment)
-                                .foregroundColor(.secondary)
-                            Image(systemName: "chevron.up.chevron.down")
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundColor(Color(.tertiaryLabel))
-                        }
+                        menuLabel(viewModel.location.isEmpty ? "Choose" : viewModel.location)
                     }
                 }
 
-                // Notification
-                Toggle("Notification", isOn: $enableNotification)
+                Toggle("Notification", isOn: $viewModel.enableNotification)
                     .tint(.mint)
+            }
+
+            Section("Care Settings") {
+                HStack {
+                    Text("Water Frequency")
+                    Spacer()
+                    Menu {
+                        ForEach(waterFrequencyOptions, id: \.self) { days in
+                            Button("\(days) Days") { viewModel.waterFrequency = days }
+                        }
+                    } label: {
+                        menuLabel("\(viewModel.waterFrequency) Days")
+                    }
+                }
+
+                HStack {
+                    Text("Base Water Amount")
+                    Spacer()
+                    amountStepper
+                }
+
+                HStack {
+                    Text("Feeding Frequency")
+                    Spacer()
+                    Menu {
+                        ForEach(feedingFrequencyOptions, id: \.self) { days in
+                            Button("\(days) Days") { viewModel.feedingFrequency = days }
+                        }
+                    } label: {
+                        menuLabel("\(viewModel.feedingFrequency) Days")
+                    }
+                }
+
+                HStack {
+                    Text("Feeding Type")
+                    Spacer()
+                    Menu {
+                        ForEach(feedingTypeOptions, id: \.self) { type in
+                            Button(type) { viewModel.feedingType = type }
+                        }
+                    } label: {
+                        menuLabel(viewModel.feedingType)
+                    }
+                }
+
+                HStack {
+                    Text("Light Requirements")
+                    Spacer()
+                    Menu {
+                        ForEach(lightOptions, id: \.self) { option in
+                            Button(option) { viewModel.lightRequirement = option }
+                        }
+                    } label: {
+                        menuLabel(viewModel.lightRequirement)
+                    }
+                }
+            }
+            .listSectionSpacing(20)
+
+            Section("Watering") {
+                WateringBlock(
+                    baseAmountMl: viewModel.waterAmount,
+                    calculatedAmountMl: viewModel.calculatedAmountMl,
+                    tags: viewModel.calculationTags
+                )
+            }
+
+            // Photo
+            Section {
+                PhotosPicker(selection: $photoItem, matching: .images) {
+                    HStack {
+                        Text("Change Photo").foregroundColor(.primary)
+                        Spacer()
+                        if let img = viewModel.selectedImage {
+                            Image(uiImage: img)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 36, height: 36)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        } else if let existing = viewModel.existingPhotoUrl,
+                                  PhotoStorage.isLocal(existing),
+                                  let img = PhotoStorage.load(existing) {
+                            Image(uiImage: img)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 36, height: 36)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        } else {
+                            Text("Select").foregroundColor(.secondary)
+                        }
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(Color(.tertiaryLabel))
+                    }
+                }
+            }
+
+            if let error = viewModel.errorMessage {
+                Section {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.orange)
+                        Text(error).font(.system(size: 14)).foregroundColor(.secondary)
+                    }
+                }
             }
         }
         .listStyle(.insetGrouped)
         .listSectionSpacing(.compact)
-        // Floating Save button
         .safeAreaInset(edge: .bottom) {
             Button {
-                // TODO: Save changes
-                dismiss()
+                Task { await viewModel.save() }
             } label: {
-                Text("Save")
-                    .font(.system(size: 17, weight: .semibold))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 28)
+                HStack(spacing: 8) {
+                    if viewModel.isSaving {
+                        ProgressView().tint(.white)
+                    } else {
+                        Text("Save").font(.system(size: 17, weight: .semibold))
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 28)
             }
             .buttonStyle(.glassProminent)
             .tint(.mint)
+            .disabled(viewModel.isSaving)
             .padding(.horizontal, 36)
-            .padding(.vertical, 0)
         }
         .navigationTitle("Edit Plant Information")
         .navigationBarTitleDisplayMode(.inline)
@@ -260,31 +225,85 @@ struct EditPlantView: View {
         .toolbar(.hidden, for: .tabBar)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .foregroundColor(.primary)
+                Button { dismiss() } label: {
+                    Image(systemName: "chevron.left").foregroundColor(.primary)
                 }
             }
         }
+        .task { await viewModel.load() }
+        .onChange(of: photoItem) { _, newItem in
+            Task {
+                guard let item = newItem,
+                      let data = try? await item.loadTransferable(type: Data.self),
+                      let img = UIImage(data: data) else { return }
+                await MainActor.run { viewModel.selectedImage = img }
+            }
+        }
+        .onChange(of: viewModel.didSave) { _, saved in
+            if saved { showSaveSuccess = true }
+        }
+        .alert("Saved", isPresented: $showSaveSuccess) {
+            Button("OK") { dismiss() }
+        } message: {
+            Text("Plant information updated successfully.")
+        }
     }
 
-    // MARK: - Custom Location Alert (UIKit)
+    // MARK: - Helpers
+
+    private func menuLabel(_ text: String) -> some View {
+        HStack(spacing: 4) {
+            Text(text).foregroundColor(.secondary)
+            Image(systemName: "chevron.up.chevron.down")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(Color(.tertiaryLabel))
+        }
+    }
+
+    private var amountStepper: some View {
+        HStack(spacing: 0) {
+            Button {
+                if viewModel.waterAmount > 50 { viewModel.waterAmount -= 50 }
+            } label: {
+                Image(systemName: "minus")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.primary)
+                    .frame(width: 32, height: 32)
+            }
+            .buttonStyle(.plain)
+
+            Divider().frame(height: 20)
+
+            Text("\(viewModel.waterAmount) ml")
+                .font(.system(size: 15))
+                .foregroundColor(.secondary)
+                .frame(minWidth: 60)
+
+            Divider().frame(height: 20)
+
+            Button {
+                viewModel.waterAmount += 50
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.primary)
+                    .frame(width: 32, height: 32)
+            }
+            .buttonStyle(.plain)
+        }
+        .background(Color(.tertiarySystemFill))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
 
     private func presentCustomLocationAlert() {
         guard let topVC = UIApplication.shared.topMostViewController() else { return }
-        let alert = UIAlertController(title: "Custom Location",
-                                      message: nil,
-                                      preferredStyle: .alert)
-        alert.addTextField { tf in
-            tf.placeholder = "Enter location"
-        }
+        let alert = UIAlertController(title: "Custom Location", message: nil, preferredStyle: .alert)
+        alert.addTextField { tf in tf.placeholder = "Enter location" }
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
         alert.addAction(UIAlertAction(title: "Save", style: .default) { _ in
             if let text = alert.textFields?.first?.text,
                !text.trimmingCharacters(in: .whitespaces).isEmpty {
-                location = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                viewModel.location = text.trimmingCharacters(in: .whitespacesAndNewlines)
             }
         })
         topVC.present(alert, animated: true)
@@ -293,7 +312,6 @@ struct EditPlantView: View {
 
 // MARK: - UIKit TextField Wrapper
 
-/// Wraps UITextField for direct text editing with clear button
 private struct UIKitTextField: UIViewRepresentable {
     @Binding var text: String
     var placeholder: String
@@ -310,26 +328,17 @@ private struct UIKitTextField: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: UITextField, context: Context) {
-        if uiView.text != text {
-            uiView.text = text
-        }
+        if uiView.text != text { uiView.text = text }
     }
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator(text: $text)
-    }
+    func makeCoordinator() -> Coordinator { Coordinator(text: $text) }
 
     class Coordinator: NSObject, UITextFieldDelegate {
         @Binding var text: String
-
-        init(text: Binding<String>) {
-            _text = text
-        }
-
+        init(text: Binding<String>) { _text = text }
         func textFieldDidChangeSelection(_ textField: UITextField) {
             text = textField.text ?? ""
         }
-
         func textFieldShouldReturn(_ textField: UITextField) -> Bool {
             textField.resignFirstResponder()
             return true
@@ -337,28 +346,8 @@ private struct UIKitTextField: UIViewRepresentable {
     }
 }
 
-// MARK: - UIApplication helper to find top VC
-
-private extension UIApplication {
-    func topMostViewController(base: UIViewController? = nil) -> UIViewController? {
-        let base = base ?? connectedScenes
-            .compactMap { ($0 as? UIWindowScene)?.keyWindow }
-            .first?.rootViewController
-        if let nav = base as? UINavigationController {
-            return topMostViewController(base: nav.visibleViewController)
-        } else if let tab = base as? UITabBarController {
-            return topMostViewController(base: tab.selectedViewController)
-        } else if let presented = base?.presentedViewController {
-            return topMostViewController(base: presented)
-        }
-        return base
-    }
-}
-
-// MARK: - Preview
-
 #Preview {
     NavigationStack {
-        EditPlantView()
+        EditPlantView(userPlantId: 1)
     }
 }

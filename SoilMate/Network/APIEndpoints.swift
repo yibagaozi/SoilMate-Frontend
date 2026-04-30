@@ -11,9 +11,13 @@ enum APIEndpoints {
 
     // Change this to your server address
     #if DEBUG
-    static let baseURL = "http://localhost:8080"
+    #if targetEnvironment(simulator)
+    static let baseURL = "http://localhost:9000/api"
     #else
-    static let baseURL = "https://api.soilmate.com"
+    static let baseURL = "http://192.168.0.101:9000/api"
+    #endif
+    #else
+    static let baseURL = ""
     #endif
 
     // -- Auth --
