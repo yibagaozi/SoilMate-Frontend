@@ -20,6 +20,13 @@ final class HomeViewModel {
 
     /// Upcoming tasks (next few days)
     var upcomingTasks: [CareTaskItem] = []
+    
+    var upNextTasks: [CareTaskItem] {
+        let todayOthers = todayTasks.filter {
+            $0.status == "PENDING" && $0.id != todayTask?.id
+        }
+        return todayOthers + upcomingTasks
+    }
 
     var isLoading = false
     var errorMessage: String?
@@ -167,7 +174,7 @@ final class HomeViewModel {
     private func scheduleNotifications() {
         let nm = NotificationManager.shared
         guard nm.isAuthorized else { return }
-        let defaultTime = Calendar.current.date(from: DateComponents(hour: 9, minute: 0)) ?? Date()
+        let defaultTime = Calendar.current.date(from: DateComponents(hour: 17, minute: 20)) ?? Date()
         nm.scheduleTaskNotifications(tasks: todayTasks, reminderTime: defaultTime)
     }
  

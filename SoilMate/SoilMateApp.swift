@@ -23,6 +23,9 @@ struct SoilMateApp: App {
         // Start watching the network so the offline queue can be flushed
         // automatically when connectivity returns.
         NetworkMonitor.shared.start()
+        
+        
+        Task { await NotificationManager.shared.requestAuthorization() }
     }
 
     var body: some Scene {

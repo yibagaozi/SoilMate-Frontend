@@ -40,7 +40,7 @@ struct HomeView: View {
                     }
 
                     // MARK: - Up Next
-                    if !viewModel.upcomingTasks.isEmpty {
+                    if !viewModel.upNextTasks.isEmpty {
                         upNextSection
                     }
 
@@ -186,7 +186,7 @@ struct HomeView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 GlassEffectContainer(spacing: 16) {
                     HStack(spacing: 16) {
-                        ForEach(viewModel.upcomingTasks) { task in
+                        ForEach(viewModel.upNextTasks) { task in
                             upNextCard(task)
                         }
                     }

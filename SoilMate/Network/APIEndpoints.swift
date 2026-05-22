@@ -14,7 +14,7 @@ enum APIEndpoints {
     #if targetEnvironment(simulator)
     static let baseURL = "http://localhost:9000/api"
     #else
-    static let baseURL = "http://192.168.0.101:9000/api"
+    static let baseURL = "http://39.106.47.245:9001/api"
     #endif
     #else
     static let baseURL = ""

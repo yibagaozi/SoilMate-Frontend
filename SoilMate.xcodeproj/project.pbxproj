@@ -71,6 +71,16 @@
 		3EC33D462F21099300D1E23B /* SoilMateUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SoilMateUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		3E32B5CD2FBC79570021FDB5 /* Exceptions for "SoilMate" folder in "SoilMate" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 3EC33D2E2F21099100D1E23B /* SoilMate */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		3E7C03EE2F82683C002B9E98 /* SoilMateWatch Watch App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
@@ -94,6 +104,9 @@
 		};
 		3EC33D312F21099100D1E23B /* SoilMate */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				3E32B5CD2FBC79570021FDB5 /* Exceptions for "SoilMate" folder in "SoilMate" target */,
+			);
 			path = SoilMate;
 			sourceTree = "<group>";
 		};
@@ -792,6 +805,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SoilMate/Info.plist;
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "SoilMate needs calendar access to add plant care reminders.";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Scan QR codes to identify your plants";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -838,6 +852,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SoilMate/Info.plist;
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "SoilMate needs calendar access to add plant care reminders.";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Scan QR codes to identify your plants";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
